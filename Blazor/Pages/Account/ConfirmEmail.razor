@@ -1,0 +1,30 @@
+﻿@page "/confirmemail"
+@inject NavigationManager Navigation
+@using Blazor.Services
+@using Blazor.Data
+@inject AccountService AccountService
+
+<h3 class="text-center mt-5">@Message</h3>
+
+@code {
+    private string Message = "Processing...";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("token", out var token) && query.TryGetValue("email", out var email))
+        {
+            var result = await AccountService.ConfirmEmailAsync(token!, email!);
+
+            Message = result.Success
+                ? "✅ Your account has been successfully confirmed."
+                : $"❌ Account confirmation failed: {result.ErrorMassage}";
+        }
+        else
+        {
+            Message = "❌ Invalid confirmation link.";
+        }
+    }
+}

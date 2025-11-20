@@ -1,0 +1,104 @@
+﻿@page "/updateproductitem/{productItemId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemService ProductItemService
+@inject ColorService ColorService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Update Product Item</h3>
+
+@if (productItem == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <a href="/productitem/@productItem.ProductId" class="btn btn-secondary mb-4">Back to Product Items</a>
+
+    <EditForm Model="productItem" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div class="form-group mb-3">
+            <label for="color">Color</label>
+            <select id="color" class="form-select" @bind="productItem.ColorId">
+                <option value="0">Select Color</option>
+                @if (colors != null && colors.Success)
+                {
+                    @foreach (var color in colors.Data)
+                    {
+                        <option value="@color.Id">@color.ColorName</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="form-group mb-3">
+            <label for="price">Price</label>
+            <InputNumber id="price" class="form-control" @bind-Value="productItem.Price" />
+            <ValidationMessage For="@(() => productItem.Price)" />
+        </div>
+        <div class="form-group mb-3">
+            <label for="salesprice">Sales Price</label>
+            <InputNumber id="salesprice" class="form-control" @bind-Value="productItem.SalesPrice" />
+            <ValidationMessage For="@(() => productItem.SalesPrice)" />
+        </div>
+        <div class="form-group mb-3">
+            <label for="productCode">Product Code</label>
+            <InputText id="productCode" class="form-control" @bind-Value="productItem.product_code" />
+            <ValidationMessage For="@(() => productItem.product_code)" />
+        </div>
+        <button type="submit" class="btn btn-primary">Update Product Item</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int ProductItemId { get; set; }
+
+    private ProductItemDto productItem;
+    private ResponseModel<List<ColorDto>>? colors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        colors = await ColorService.GetColorsAsync();
+
+        var response = await ProductItemService.GetProductItemById(ProductItemId);
+        if (response.Success)
+        {
+            productItem = response.Data;
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to load product item for update.");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // إنشاء كائن UpdateProductItemDto من productItem
+        var updateDto = new UpdateProductItemDto
+            {
+                Id = productItem.Id,
+                ProductId = productItem.ProductId,
+                ColorId = productItem.ColorId,
+                Price = productItem.Price,
+                SalesPrice = productItem.SalesPrice,
+                product_code = productItem.product_code
+            };
+
+        // تمرير الكائن الجديد إلى الدالة
+        var response = await ProductItemService.UpdateProductItemAsync(updateDto);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product item updated successfully.");
+            NavigationManager.NavigateTo($"/productitem/{productItem.ProductId}");
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to update product item.");
+        }
+    }
+}

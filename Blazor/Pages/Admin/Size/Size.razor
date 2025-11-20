@@ -1,0 +1,141 @@
+﻿@page "/sizes"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+@inject SizeService SizeService
+
+@using Blazor.Data
+@using Blazor.Services
+@using System.ComponentModel.DataAnnotations
+@inject SizeService SizeService
+@inject IToastService toastService
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-primary">Size Management</h3>
+
+<button class="btn btn-success mb-3" @onclick="ShowCreateForm">➕ Add New Size</button>
+
+@if (sizes == null)
+{
+    <p>Loading sizes...</p>
+}
+else if (!sizes.Any())
+{
+    <p>No sizes available</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var size in sizes)
+            {
+                <tr>
+                    <td>@size.Id</td>
+                    <td>@size.SizeNmae</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" @onclick="() => EditSize(size)">✏ Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteSize(size.Id)">🗑 Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showForm)
+{
+    <div class="card p-3 mt-3">
+        <h5>@(editMode ? "Edit Size" : "Add New Size")</h5>
+        <div class="mb-2">
+            <label>Size Name</label>
+            <input class="form-control" @bind="formModel.SizeNmae" />
+        </div>
+        <button class="btn btn-primary" @onclick="SaveSize">💾 Save</button>
+        <button class="btn btn-secondary" @onclick="CancelForm">❌ Cancel</button>
+    </div>
+}
+
+@code {
+    private List<SizeDto> sizes;
+    private bool showForm = false;
+    private bool editMode = false;
+    private UpdateSizeDto formModel = new();
+    private int editId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSizes();
+    }
+
+    private async Task LoadSizes()
+    {
+        var response = await SizeService.GetAllAsync();
+        if (response.Success)
+            sizes = response.Data;
+    }
+
+    private void ShowCreateForm()
+    {
+        showForm = true;
+        editMode = false;
+        formModel = new UpdateSizeDto();
+    }
+
+    private void EditSize(SizeDto size)
+    {
+        showForm = true;
+        editMode = true;
+        editId = size.Id;
+        formModel = new UpdateSizeDto
+            {
+                Id = size.Id,
+                SizeNmae = size.SizeNmae
+            };
+    }
+
+    private async Task SaveSize()
+    {
+        ResponseModel<object> response;
+        if (editMode)
+        {
+            response = await SizeService.UpdateAsync(formModel);
+        }
+        else
+        {
+            response = await SizeService.CreateAsync(new CreateSizeDto
+                {
+                    SizeNmae = formModel.SizeNmae
+                });
+        }
+
+        if (response.Success)
+        {
+            await LoadSizes();
+            CancelForm();
+        }
+        else
+        {
+            Console.WriteLine(response.ErrorMassage);
+        }
+    }
+
+    private async Task DeleteSize(int id)
+    {
+        var response = await SizeService.DeleteAsync(id);
+        if (response.Success)
+            await LoadSizes();
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editMode = false;
+    }
+}

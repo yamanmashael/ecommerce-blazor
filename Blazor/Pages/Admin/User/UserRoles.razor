@@ -1,0 +1,136 @@
+﻿@page "/user_Role/{UserId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+
+
+@inject UserService UserService
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+
+
+<PageTitle>User Roles</PageTitle>
+
+<h3>User Roles</h3>
+<div class="row">
+    <div class="col-md-6">
+        @if (userRoles == null)
+        {
+            <p><em>Loading roles...</em></p>
+        }
+        else
+        {
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Role Name</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var userRole in userRoles)
+                    {
+                        <tr>
+                            <td>@userRole.RoleName</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteUserRole(userRole.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Add New Role</h4>
+            </div>
+            <div class="card-body">
+                @if (availableRoles == null)
+                {
+                    <p><em>Loading available roles...</em></p>
+                }
+                else
+                {
+                    <EditForm Model="@createUserRoleDto" OnValidSubmit="@CreateUserRole">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Select Role</label>
+                            <InputSelect @bind-Value="createUserRoleDto.RoleId" class="form-control" id="role">
+                                <option value="0">-- Select Role --</option>
+                                @foreach (var role in availableRoles)
+                                {
+                                    <option value="@role.Id">@role.Name</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => createUserRoleDto.RoleId)" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Role</button>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    private List<UserRoleDto> userRoles;
+    private IEnumerable<RoleDto> availableRoles;
+    private CreateUserRoleDto createUserRoleDto = new CreateUserRoleDto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var rolesResponse = await UserService.GetRolesAsync();
+        if (rolesResponse.Success)
+        {
+            availableRoles = rolesResponse.Data;
+        }
+
+        var userRolesResponse = await UserService.GetAllUserRoleAsync(UserId);
+        if (userRolesResponse.Success)
+        {
+            userRoles = userRolesResponse.Data;
+        }
+    }
+
+    private async Task CreateUserRole()
+    {
+        if (createUserRoleDto.RoleId == 0)
+        {
+            ToastService.ShowError("Please select a role.");
+            return;
+        }
+
+        createUserRoleDto.UserId = UserId;
+        var response = await UserService.CreateUserRoleAsync(createUserRoleDto);
+
+        if (response.Success)
+        {
+            await LoadData();
+            createUserRoleDto.RoleId = 0; 
+        }
+    }
+
+    private async Task DeleteUserRole(int userRoleId)
+    {
+        var response = await UserService.DeleteUserRoleAsync(userRoleId);
+
+        if (response.Success)
+        {
+            await LoadData();
+        }
+    }
+}

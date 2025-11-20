@@ -1,0 +1,63 @@
+﻿@page "/deleteproductitem/{productItemId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemService ProductItemService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Delete Product Item</h3>
+
+@if (productItem == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="alert alert-warning">
+        <p>Are you sure you want to delete this product item?</p>
+        <p><strong>Product Code:</strong> @productItem.product_code</p>
+    </div>
+
+    <div class="mt-4">
+        <button class="btn btn-danger me-2" @onclick="HandleDelete">Yes, Delete</button>
+        <a href="/productitem/@productItem.ProductId" class="btn btn-sm btn-info">Cancel</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ProductItemId { get; set; }
+
+    private ProductItemDto? productItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ProductItemService.GetProductItemById(ProductItemId);
+        if (response.Success)
+        {
+            productItem = response.Data;
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to load product item details.");
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        var response = await ProductItemService.DeleteProductItemAsync(ProductItemId);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product item deleted successfully.");
+            NavigationManager.NavigateTo($"/productitem/{productItem.ProductId}");
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to delete product item.");
+        }
+    }
+}

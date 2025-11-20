@@ -1,0 +1,89 @@
+﻿@page "/productitemsize/{productItemId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemSizeService ProductItemSizeService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">
+            <i class="bi bi-rulers me-2"></i> Product Item Sizes and Stock
+        </h4>
+        <a href="/productitem/@ProductItemId" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Product Items
+        </a>
+    </div>
+    <div class="card-body">
+        @if (productItemSizes == null)
+        {
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading size data...</p>
+            </div>
+        }
+        else if (!productItemSizes.Success)
+        {
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @productItemSizes.ErrorMassage
+            </div>
+        }
+        else if (productItemSizes.Data == null || !productItemSizes.Data.Any())
+        {
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-info-circle-fill me-2"></i> No sizes found for this item.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Size Name</th>
+                            <th>Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sizeItem in productItemSizes.Data)
+                        {
+                            <tr>
+                                <td>@sizeItem.Id</td>
+                                <td>@sizeItem.SizeName</td>
+                                <td>@sizeItem.Stock</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int ProductItemId { get; set; }
+
+    private ResponseModel<List<ProductItemSizeDto>>? productItemSizes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductItemSizes();
+    }
+
+    private async Task LoadProductItemSizes()
+    {
+        productItemSizes = await ProductItemSizeService.GetProductItemSizeByProductItem(ProductItemId);
+        if (productItemSizes?.Success == false)
+        {
+            toastService.ShowError(productItemSizes.ErrorMassage ?? "Failed to load product sizes.");
+        }
+    }
+}

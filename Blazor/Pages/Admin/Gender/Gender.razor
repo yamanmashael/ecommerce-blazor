@@ -1,0 +1,152 @@
+﻿@page "/genders"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@inject GenderService GenderService
+@inject IToastService ToastService
+@using Blazor.Data
+@using Blazor.Services
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JSRuntime
+
+<h3 class="mb-4 text-primary">Gender Management</h3>
+
+@if (genders == null)
+{
+    <p>Loading data...</p>
+}
+else
+{
+    <button class="btn btn-success mb-3" @onclick="ShowAddDialog">➕ Add</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var g in genders)
+            {
+                <tr>
+                    <td>@g.Id</td>
+                    <td>@g.GenderName</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm me-2" @onclick="() => ShowEditDialog(g)">✏️ Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => Delete(g.Id)">🗑 Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showDialog)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@dialogTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" placeholder="Gender Name" @bind="genderModel.GenderName" />
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
+                    <button class="btn btn-primary" @onclick="Save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<GenderDto> genders;
+    private bool showDialog = false;
+    private string dialogTitle;
+    private GenderDto genderModel = new GenderDto();
+    private bool isEdit = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var result = await GenderService.GetGendersAsync();
+        if (result.Success)
+            genders = result.Data;
+        else
+            ToastService.ShowError(result.ErrorMassage);
+    }
+
+    private void ShowAddDialog()
+    {
+        isEdit = false;
+        dialogTitle = "Add New Gender";
+        genderModel = new GenderDto();
+        showDialog = true;
+    }
+
+    private void ShowEditDialog(GenderDto dto)
+    {
+        isEdit = true;
+        dialogTitle = "Edit Gender";
+        genderModel = new GenderDto { Id = dto.Id, GenderName = dto.GenderName };
+        showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(genderModel.GenderName))
+        {
+            ToastService.ShowWarning("Please enter a name");
+            return;
+        }
+
+        if (isEdit)
+        {
+            var response = await GenderService.UpdateGenderAsync(genderModel.Id, new UpdateGenderDto { GenderName = genderModel.GenderName });
+            if (response.Success)
+                ToastService.ShowSuccess("Successfully updated");
+            else
+                ToastService.ShowError(response.ErrorMassage);
+        }
+        else
+        {
+            var response = await GenderService.CreateGenderAsync(new CreateGenderDto { GenderName = genderModel.GenderName });
+            if (response.Success)
+                ToastService.ShowSuccess("Successfully added");
+            else
+                ToastService.ShowError(response.ErrorMassage);
+        }
+
+        CloseDialog();
+        await LoadData();
+    }
+
+    private async Task Delete(int id)
+    {
+        var response = await GenderService.DeleteGenderAsync(id);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("Successfully deleted");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError(response.ErrorMassage);
+        }
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+    }
+}

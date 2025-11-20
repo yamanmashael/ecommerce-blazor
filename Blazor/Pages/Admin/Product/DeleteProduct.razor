@@ -1,0 +1,73 @@
+﻿@page "/deleteproduct/{id:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductService ProductService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Delete Product</h3>
+
+@if (productToDelete == null)
+{
+    <p>Loading...</p>
+}
+else if (!isLoaded)
+{
+    <div class="alert alert-danger">Failed to load product details for deletion.</div>
+}
+else
+{
+    <div class="alert alert-warning">
+        <p>Are you sure you want to delete this product?</p>
+        <p><strong>Product Name:</strong> @productToDelete.ProductName</p>
+    </div>
+
+    <div class="mt-4">
+        <button class="btn btn-danger me-2" @onclick="HandleDelete">Yes, Delete</button>
+        <a href="/products" class="btn btn-secondary">Cancel</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private ProductDto? productToDelete;
+    private bool isLoaded = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var productResponse = await ProductService.GetByIdAsync(Id);
+
+        if (productResponse.Success && productResponse.Data != null)
+        {
+            productToDelete = productResponse.Data;
+            isLoaded = true;
+        }
+        else
+        {
+            isLoaded = false;
+            toastService.ShowError("Failed to load product details.");
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        var response = await ProductService.DeleteProductAsync(Id);
+
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product deleted successfully.");
+            NavigationManager.NavigateTo("/products");
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to delete product due to an unknown error.";
+            toastService.ShowError($"Deletion failed: {errorMessage}");
+        }
+    }
+}

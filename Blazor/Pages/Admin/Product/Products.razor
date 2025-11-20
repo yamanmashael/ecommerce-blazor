@@ -1,0 +1,329 @@
+﻿@page "/products"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductService ProductService
+@inject GenderService GenderService
+@inject CategoryService CategoryService
+@inject CategoryItemService CategoryItemService
+@inject BrandService BrandService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3 class="mb-4">
+    <i class="bi bi-tag-fill me-2"></i> Product Management
+</h3>
+
+<a href="/createproduct" class="btn btn-primary mb-4 shadow-sm">
+    <i class="bi bi-plus-circle me-1"></i> Add New Product
+</a>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" aria-controls="filtersCollapse">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-sliders me-2"></i> Filters & Search
+        </h5>
+        <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="collapse show" id="filtersCollapse">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Gender</label>
+                    <select class="form-select" @onchange="async e => await OnGenderSelected(Convert.ToInt32(e.Value))">
+                        <option value="0">All Genders</option>
+                        @if (genders != null && genders.Success && genders.Data != null)
+                        {
+                            @foreach (var gender in genders.Data)
+                            {
+                                <option value="@gender.Id">@gender.GenderName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" @onchange="async e => await OnCategorySelected(Convert.ToInt32(e.Value))" disabled="@(categories == null || !categories.Success)">
+                        <option value="0">All Categories</option>
+                        @if (categories != null && categories.Success && categories.Data != null)
+                        {
+                            @foreach (var category in categories.Data)
+                            {
+                                <option value="@category.Id">@category.CategoryName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Category Item</label>
+                    <select class="form-select" @onchange="async e => await OnCategoryItemSelected(Convert.ToInt32(e.Value))" disabled="@(categoryItems == null || !categoryItems.Success)">
+                        <option value="0">All Category Items</option>
+                        @if (categoryItems != null && categoryItems.Success && categoryItems.Data != null)
+                        {
+                            @foreach (var item in categoryItems.Data)
+                            {
+                                <option value="@item.Id">@item.CategoryItemName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Brand</label>
+                    <select class="form-select" @onchange="async e => await OnBrandSelected(Convert.ToInt32(e.Value))">
+                        <option value="0">All Brands</option>
+                        @if (brands != null && brands.Success && brands.Data != null)
+                        {
+                            @foreach (var brand in brands.Data)
+                            {
+                                <option value="@brand.Id">@brand.BarndName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label">Search Product</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search by product name..." @bind="request.search" @onkeydown="HandleKeyDown" />
+                        <button class="btn btn-primary" @onclick="ApplySearch">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    @if (products != null && products.Success && products.TotalCount.HasValue)
+    {
+        <div class="text-muted fw-bold">Total Products: @products.TotalCount</div>
+    }
+
+    <div class="d-flex align-items-center">
+        <label class="form-label me-2 mb-0">Page Size:</label>
+        <select @onchange="async e => await ChangePageSize(Convert.ToInt32(e.Value))"
+                class="form-select me-3" style="width: 120px;">
+            <option value="5" selected="@(request.PageSize == 5)">5</option>
+            <option value="10" selected="@(request.PageSize == 10)">10</option>
+            <option value="20" selected="@(request.PageSize == 20)">20</option>
+            <option value="50" selected="@(request.PageSize == 50)">50</option>
+        </select>
+        @if (products != null && products.Success && products.PageNumber.HasValue && products.TotalPages.HasValue)
+        {
+            <div class="ms-auto">
+                Page @products.PageNumber of @products.TotalPages
+            </div>
+        }
+    </div>
+</div>
+
+@if (products == null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading products...</p>
+    </div>
+}
+else if (!products.Success)
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @products.ErrorMassage
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-hover custom-table">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Image</th>
+                    <th>Gender</th>
+                    <th>Category</th>
+                    <th>Category Item</th>
+                    <th>Brand</th>
+                    <th>Product Name</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in products.Data)
+                {
+                    <tr>
+                        <td>@p.Id</td>
+                        <td><img src="@p.ImageUrl" alt="Product Image" class="img-fluid rounded" style="max-height: 200px; object-fit: cover;" /></td>
+                        <td>@p.GenderName</td>
+                        <td>@p.CategoryName</td>
+                        <td>@p.CategoryItemName</td>
+                        <td>@p.BrandName</td>
+                        <td>@p.ProductName</td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <a href="/updateproduct/@p.Id" class="btn btn-sm btn-outline-info" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="/deleteproduct/@p.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                <a href="/productitem/@p.Id" class="btn btn-sm btn-outline-warning" title="Manage Items">
+                                    <i class="bi bi-list-nested"></i>
+                                </a>
+                                <a href="/product-details/@p.Id" class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="mt-4" aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(products.PageNumber <= 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => ChangePage(products.PageNumber.Value - 1)">Previous</button>
+            </li>
+            @for (int i = 1; i <= products.TotalPages; i++)
+            {
+                var currentPage = i;
+                <li class="page-item @(currentPage == products.PageNumber ? "active" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(currentPage)">@currentPage</button>
+                </li>
+            }
+            <li class="page-item @(products.PageNumber >= products.TotalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => ChangePage(products.PageNumber.Value + 1)">Next</button>
+            </li>
+        </ul>
+    </nav>
+}
+
+@code {
+    private RequestProduct request = new RequestProduct();
+    private ResponseModel<List<ProductDto>>? products;
+    private ResponseModel<List<GenderDto>>? genders;
+    private ResponseModel<List<CategoryDto>>? categories;
+    private ResponseModel<List<CategoryItemDto>>? categoryItems;
+    private ResponseModel<List<BrandDto>>? brands;
+
+    protected override async Task OnInitializedAsync()
+    {
+        request.PageSize = 10;
+        request.PageNumber = 1;
+
+        await Task.WhenAll(
+            LoadGenders(),
+            LoadBrands(),
+            LoadProducts()
+        );
+    }
+
+    private async Task LoadGenders()
+    {
+        genders = await GenderService.GetGendersAsync();
+    }
+
+    private async Task LoadBrands()
+    {
+        brands = await BrandService.GetBrandsAsync();
+    }
+
+    private async Task LoadProducts()
+    {
+        products = null;
+        var result = await ProductService.GetAllProductAsync(request);
+        if (result.Success)
+        {
+            products = result;
+        }
+        else
+        {
+            toastService.ShowError(result.ErrorMassage ?? "Failed to load products.");
+        }
+    }
+
+    private async Task OnGenderSelected(int genderId)
+    {
+        request.genderId = genderId > 0 ? genderId : null;
+        request.categoryId = null;
+        request.categoryItemId = null;
+        categories = null;
+        categoryItems = null;
+        request.PageNumber = 1;
+
+        if (genderId > 0)
+        {
+            categories = await CategoryService.GetCategoryByGenderAsync(genderId);
+        }
+        await LoadProducts();
+    }
+
+    private async Task OnCategorySelected(int categoryId)
+    {
+        request.categoryId = categoryId > 0 ? categoryId : null;
+        request.categoryItemId = null;
+        categoryItems = null;
+        request.PageNumber = 1;
+
+        if (categoryId > 0)
+        {
+            categoryItems = await CategoryItemService.GetCategoryItemByCategoryAsync(categoryId);
+        }
+        await LoadProducts();
+    }
+
+    private async Task OnCategoryItemSelected(int categoryItemId)
+    {
+        request.categoryItemId = categoryItemId > 0 ? categoryItemId : null;
+        request.PageNumber = 1;
+        await LoadProducts();
+    }
+
+    private async Task OnBrandSelected(int brandId)
+    {
+        request.BrandId = brandId > 0 ? brandId : null;
+        request.PageNumber = 1;
+        await LoadProducts();
+    }
+
+    private async Task ChangePageSize(int newPageSize)
+    {
+        request.PageSize = newPageSize;
+        request.PageNumber = 1;
+        await LoadProducts();
+    }
+
+    private async Task ChangePage(int newPage)
+    {
+        if (products != null && products.Success && newPage >= 1 && newPage <= products.TotalPages)
+        {
+            request.PageNumber = newPage;
+            await LoadProducts();
+        }
+    }
+
+    private async Task ApplySearch()
+    {
+        request.PageNumber = 1;
+        await LoadProducts();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplySearch();
+        }
+    }
+}

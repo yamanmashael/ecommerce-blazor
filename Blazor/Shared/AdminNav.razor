@@ -1,0 +1,109 @@
+﻿@inherits ComponentBase
+@using Blazored.Toast.Configuration
+@using System.Security.Claims
+
+<div class="admin-sidebar bg-dark text-light p-3">
+    <h4 class="text-white mb-4">Dashboard</h4>
+
+    <ul class="nav flex-column">
+
+        <!-- Main Section -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white fw-semibold" data-bs-toggle="collapse" href="#mainSection" role="button">
+                <i class="fas fa-tachometer-alt me-2"></i> Main
+            </a>
+            <ul class="collapse list-unstyled ps-3" id="mainSection">
+                <li><NavLink class="nav-link text-white" href="/dashboard">Overview</NavLink></li>
+
+            </ul>
+        </li>
+
+        <!-- Products -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white fw-semibold" data-bs-toggle="collapse" href="#productsSection" role="button">
+                <i class="fas fa-box-open me-2"></i> Products
+            </a>
+            <ul class="collapse list-unstyled ps-3" id="productsSection">
+                <li><NavLink class="nav-link text-white" href="/brands">Brand</NavLink></li>
+                <li><NavLink class="nav-link text-white" href="/categories">Categories</NavLink></li>
+                <li><NavLink class="nav-link text-white" href="/categoryitems">Category Items</NavLink></li>
+                <li><NavLink class="nav-link text-white" href="/products">Products</NavLink></li>
+
+                <li class="nav-item mt-1">
+                    <a class="nav-link text-white" data-bs-toggle="collapse" href="#accessoriesSection" role="button">
+                        <i class="fas fa-tags me-2"></i> Accessories
+                    </a>
+                    <ul class="collapse list-unstyled ps-3" id="accessoriesSection">
+                        <li><NavLink class="nav-link text-white" href="/genders">Gender</NavLink></li>
+                        <li><NavLink class="nav-link text-white" href="/colors">Color</NavLink></li>
+                        <li><NavLink class="nav-link text-white" href="/sizes">Size</NavLink></li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Orders -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white fw-semibold" data-bs-toggle="collapse" href="#ordersSection" role="button">
+                <i class="fas fa-shopping-cart me-2"></i> Orders
+            </a>
+            <ul class="collapse list-unstyled ps-3" id="ordersSection">
+                <li><NavLink class="nav-link text-white" href="/dashboard_orders">All Orders</NavLink></li>
+       
+            </ul>
+        </li>
+
+        <!-- Users -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white fw-semibold" data-bs-toggle="collapse" href="#usersSection" role="button">
+                <i class="fas fa-users me-2"></i> Users
+            </a>
+            <ul class="collapse list-unstyled ps-3" id="usersSection">
+                <li><NavLink class="nav-link text-white" href="/users">User List</NavLink></li>
+      
+            </ul>
+        </li>
+
+        <!-- Messages -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white fw-semibold" data-bs-toggle="collapse" href="#messagesSection" role="button">
+                <i class="fas fa-envelope me-2"></i> Messages
+            </a>
+            <ul class="collapse list-unstyled ps-3" id="messagesSection">
+                <li><NavLink class="nav-link text-white" href="">Inbox</NavLink></li>
+                <li><NavLink class="nav-link text-white" href="">Sent</NavLink></li>
+              
+            </ul>
+        </li>
+
+    </ul>
+</div>
+
+<style>
+    .admin-sidebar {
+        width: 250px;
+        min-height: 100vh;
+        position: sticky;
+        top: 0;
+        left: 0;
+        overflow-y: auto;
+        background: linear-gradient(180deg, #212529, #343a40);
+        border-right: 1px solid #444;
+    }
+
+    .admin-sidebar .nav-link {
+        font-size: 0.95rem;
+        padding: 8px 15px;
+        border-radius: 5px;
+        transition: background 0.3s ease;
+    }
+
+    .admin-sidebar .nav-link:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-link.active {
+        background: #007bff !important;
+        color: white !important;
+    }
+</style>

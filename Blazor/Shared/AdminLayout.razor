@@ -1,0 +1,67 @@
+﻿@inherits LayoutComponentBase
+@using Blazor.Data
+@using Blazor.Services
+@using Blazored.Toast.Configuration
+@using System.Security.Claims
+
+<div class="admin-container">
+
+    <!-- ======= Header ======= -->
+    <header class="admin-header d-flex justify-content-between align-items-center px-4 py-3 bg-dark text-white shadow-sm">
+        <div class="logo">
+            <a href="/" class="text-white fw-bold fs-4 text-decoration-none">YAMAN STORE Admin</a>
+        </div>
+
+        <div class="header-icons d-flex align-items-center gap-3">
+            <a href="/dashboard" class="text-white fs-5 text-decoration-none">Home</a>
+
+            <div class="dropdown">
+                <button class="btn btn-outline-danger dropdown-toggle" id="logoutDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="logoutDropdown">
+                    <li>
+                        <a class="dropdown-item text-danger fw-semibold" href="/logout">
+                            <i class="fa fa-power-off me-2"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- ======= Body ======= -->
+    <div class="d-flex">
+        <AdminNav />
+        <main class="admin-main flex-grow-1 p-4 bg-light">
+            @Body
+        </main>
+    </div>
+</div>
+
+<BlazoredToasts Position="ToastPosition.TopRight"
+                Timeout="10"
+                IconType="IconType.FontAwesome"
+                SuccessClass="success-toast-override"
+                SuccessIcon="fa fa-thumbs-up"
+                ErrorIcon="fa fa-bug" />
+
+<style>
+    .admin-header {
+        position: sticky;
+        top: 0;
+        z-index: 1050;
+    }
+
+    .admin-main {
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+    }
+</style>

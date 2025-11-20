@@ -1,0 +1,93 @@
+﻿@page "/updateproductitemsize/{productItemSizeId:int}/{productId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemSizeService ProductItemSizeService
+@inject SizeService SizeService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Update Product Item Size</h3>
+
+@if (productItemSize == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <a href="/productitem/@ProductId" class="btn btn-secondary mb-4">Back to Product Item Sizes</a>
+
+    <EditForm Model="productItemSize" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div class="form-group mb-3">
+            <label for="size">Size</label>
+            <select id="size" class="form-select" @bind="productItemSize.SizeId">
+                <option value="0">Select Size</option>
+                @if (sizes != null && sizes.Success)
+                {
+                    @foreach (var size in sizes.Data)
+                    {
+                        <option value="@size.Id">@size.SizeNmae</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="form-group mb-3">
+            <label for="stock">Stock</label>
+            <InputNumber id="stock" class="form-control" @bind-Value="productItemSize.Stock" />
+            <ValidationMessage For="@(() => productItemSize.Stock)" />
+        </div>
+        <button type="submit" class="btn btn-primary">Update Product Item Size</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int ProductItemSizeId { get; set; }
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private ProductItemSizeDto? productItemSize;
+    private ResponseModel<List<SizeDto>>? sizes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        sizes = await SizeService.GetAllAsync();
+        var response = await ProductItemSizeService.GetProductItemSizeById(ProductItemSizeId);
+        if (response.Success)
+        {
+            productItemSize = response.Data;
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to load product item size for update.");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // إنشاء كائن UpdateProductItemSizeDto من productItemSize
+        var updateDto = new UpdateProductItemSizeDto
+            {
+                Id = productItemSize.Id,
+                PrductItemId = productItemSize.PrductItemId,
+                Stock = productItemSize.Stock,
+                SizeId = productItemSize.SizeId
+            };
+
+        // تمرير الكائن الجديد إلى الدالة
+        var response = await ProductItemSizeService.UpdateProductItemSizeAsync(updateDto);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product item size updated successfully.");
+            NavigationManager.NavigateTo($"/productitem/{ProductId}");
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to update product item size.");
+        }
+    }
+}

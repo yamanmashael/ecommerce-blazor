@@ -1,0 +1,122 @@
+﻿@page "/cart"
+
+<PageTitle>Shopping Cart</PageTitle>
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Shopping Cart</h1>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading cart...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger text-center">@errorMessage</div>
+    }
+    else if (cartDto?.CartItemDto == null || !cartDto.CartItemDto.Any())
+    {
+  
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                @foreach (var item in cartDto.CartItemDto)
+                {
+                    <div class="card mb-3 shadow-sm">
+                        <div class="row g-0">
+                            <div class="col-md-3 d-flex align-items-center justify-content-center p-3">
+                                <img src="@item.ImageUrl" class="img-fluid rounded-start cart-item-image" alt="@item.ProductName" />
+                            </div>
+                            <div class="col-md-9">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h5 class="card-title">@item.ProductName</h5>
+                                            <p class="card-text text-muted">Brand: @item.BrandName</p>
+                                            <p class="card-text text-muted">Color: @item.ColorName | Size: @item.SizeName</p>
+                                            <p class="card-text fw-bold text-success">@item.Price.ToString("C")</p>
+                                        </div>
+                                        <button class="btn btn-danger btn-sm" @onclick="@(() => RemoveItem(item.CartItemId))">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="input-group mt-2" style="width: 120px;">
+                                        <button class="btn btn-outline-secondary" type="button"
+                                                @onclick="() => UpdateQuantity(item.CartItemId, -1)"
+                                                disabled="@(item.Quantity <= 1 || updatingItems.Contains(item.CartItemId))">
+                                            -
+                                        </button>
+
+                                        <input type="text" class="form-control text-center" value="@item.Quantity" readonly />
+
+                                        <button class="btn btn-outline-secondary" type="button"
+                                                @onclick="() => UpdateQuantity(item.CartItemId, 1)"
+                                                disabled="@(updatingItems.Contains(item.CartItemId))">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm p-3 sticky-top" style="top: 20px;">
+                    <h5 class="card-title text-center">Cart Summary</h5>
+                    <hr />
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span>@cartDto.TotalPrice.ToString("C")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Shipping:</span>
+                        <span>Free</span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between fw-bold fs-5 text-success">
+                        <span>Total:</span>
+                        <span>@cartDto.TotalPrice.ToString("C")</span>
+                    </div>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <button class="btn btn-primary btn-lg w-100 mt-3" @onclick="Checkout">
+                                <i class="bi bi-bag-check"></i> Proceed to Checkout
+                            </button>
+                        </Authorized>
+
+                        <NotAuthorized>
+                            <div class="card shadow-sm mt-3 text-center border-0">
+                                <div class="card-body">
+                                    <h6 class="mb-3 text-muted">Please sign in to complete your order</h6>
+                                    <a class="btn btn-outline-primary btn-lg w-100 mb-2" href="/auth">
+                                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                                    </a>
+                                    <a class="btn btn-success btn-lg w-100" href="/auth">
+                                        <i class="bi bi-person-plus"></i> Create Account
+                                    </a>
+                                </div>
+                            </div>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .cart-item-image {
+        max-width: 150px;
+        max-height: 150px;
+        object-fit: contain;
+    }
+</style>

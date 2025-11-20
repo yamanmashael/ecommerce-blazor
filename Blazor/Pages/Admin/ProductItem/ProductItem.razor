@@ -1,0 +1,191 @@
+﻿@page "/productitem/{productId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemService ProductItemService
+@inject ProductItemSizeService ProductItemSizeService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3 class="mb-4">
+    <i class="bi bi-box-seam-fill me-2"></i> إدارة عناصر المنتج
+</h3>
+
+<a href="/createproductitem/@ProductId" class="btn btn-primary mb-4 shadow-sm">
+    <i class="bi bi-plus-circle me-1"></i> إضافة عنصر منتج جديد
+</a>
+
+@if (productItems == null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري التحميل...</span>
+        </div>
+        <p class="mt-2 text-muted">جاري تحميل عناصر المنتج...</p>
+    </div>
+}
+else if (!productItems.Success)
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @productItems.ErrorMassage
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>اللون</th>
+                    <th>السعر</th>
+                    <th>سعر البيع</th>
+                    <th>كود المنتج</th>
+                    <th class="text-center" style="width: 250px;">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in productItems.Data)
+                {
+                    <tr class="table-info">
+                        <td>@item.Id</td>
+                        <td>@item.ColorName</td>
+                        <td>@item.Price.ToString("N2") ₺</td>
+                        <td>@item.SalesPrice.ToString("N2") ₺</td>
+                        <td>@item.product_code</td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleDetails(item.Id)" title="عرض/إخفاء المقاسات">
+                                    <i class="bi @(expandedItemId == item.Id ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                                </button>
+                                <a href="/updateproductitem/@item.Id" class="btn btn-sm btn-outline-primary" title="تعديل">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="/deleteproductitem/@item.Id" class="btn btn-sm btn-outline-danger" title="حذف">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                <a href="/photos/@item.Id/@item.ProductId" class="btn btn-sm btn-outline-warning" title="إدارة الصور">
+                                    <i class="bi bi-image"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    @if (expandedItemId == item.Id)
+                    {
+                        <tr>
+                            <td colspan="6" class="p-3 bg-light">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">مقاسات المنتج</h5>
+                                    <a href="/createproductitemsize/@item.Id/@item.ProductId" class="btn btn-sm btn-success">
+                                        <i class="bi bi-plus-lg me-1"></i> إضافة مقاس جديد
+                                    </a>
+                                </div>
+                                @if (loadingSizes)
+                                {
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                        <p class="mt-2 mb-0 text-muted">جاري تحميل المقاسات...</p>
+                                    </div>
+                                }
+                                else if (productItemSizes != null && productItemSizes.Success && productItemSizes.Data != null && productItemSizes.Data.Any())
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mt-2">
+                                            <thead class="table-secondary">
+                                                <tr>
+                                                    <th>اسم المقاس</th>
+                                                    <th>المخزون</th>
+                                                    <th style="width: 150px;">الإجراء</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var sizeItem in productItemSizes.Data)
+                                                {
+                                                    <tr>
+                                                        <td>@sizeItem.SizeName</td>
+                                                        <td>@sizeItem.Stock</td>
+                                                        <td>
+                                                            <div class="btn-group" role="group">
+                                                                <a href="/updateproductitemsize/@sizeItem.Id/@item.ProductId" class="btn btn-sm btn-outline-info" title="تعديل المقاس">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </a>
+                                                                <a href="/deleteproductitemsize/@sizeItem.Id/@item.ProductId" class="btn btn-sm btn-outline-danger" title="حذف المقاس">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </a>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-warning mt-2">
+                                        <i class="bi bi-info-circle me-1"></i> لا توجد مقاسات لهذا العنصر بعد.
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<a href="/products" class="btn btn-secondary mt-4">
+    <i class="bi bi-arrow-left me-1"></i> العودة إلى المنتجات
+</a>
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private ResponseModel<List<ProductItemDto>>? productItems;
+    private ResponseModel<List<ProductItemSizeDto>>? productItemSizes;
+    private int expandedItemId = 0;
+    private bool loadingSizes = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductItems();
+    }
+
+    private async Task LoadProductItems()
+    {
+        productItems = await ProductItemService.GetProductItemByProduct(ProductId);
+        if (productItems?.Success == false)
+        {
+            toastService.ShowError(productItems.ErrorMassage ?? "فشل تحميل عناصر المنتج.");
+        }
+    }
+
+    private async Task ToggleDetails(int productItemId)
+    {
+        if (expandedItemId == productItemId)
+        {
+            expandedItemId = 0;
+        }
+        else
+        {
+            expandedItemId = productItemId;
+            loadingSizes = true;
+            productItemSizes = null;
+            var result = await ProductItemSizeService.GetProductItemSizeByProductItem(productItemId);
+            if (result.Success)
+            {
+                productItemSizes = result;
+            }
+            else
+            {
+                toastService.ShowError(result.ErrorMassage ?? "فشل تحميل تفاصيل المقاسات.");
+            }
+            loadingSizes = false;
+        }
+    }
+}

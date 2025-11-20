@@ -1,0 +1,71 @@
+﻿@page "/deleteproductitemsize/{productItemSizeId:int}/{productId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemSizeService ProductItemSizeService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Delete Product Item Size</h3>
+
+@if (productItemSize == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="alert alert-warning">
+        <p>Are you sure you want to delete this product item size?</p>
+        <p><strong>Size:</strong> @productItemSize.SizeName</p>
+        <p><strong>Stock:</strong> @productItemSize.Stock</p>
+    </div>
+
+    <div class="mt-4">
+        <button class="btn btn-danger me-2" @onclick="HandleDelete">Yes, Delete</button>
+@*         <button class="btn btn-secondary" @onclick="() => NavigationManager.NavigateTo($"/productitemsize/{productItemSize.PrductItemId}")">Cancel</button>
+ *@
+        <a href="/productitem/@ProductId" class="btn btn-sm btn-info">Cancel</a>
+
+
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ProductItemSizeId { get; set; }
+
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private ProductItemSizeDto? productItemSize;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ProductItemSizeService.GetProductItemSizeById(ProductItemSizeId);
+        if (response.Success)
+        {
+            productItemSize = response.Data;
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to load product item size details.");
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        var response = await ProductItemSizeService.DeleteProductItemSizeAsync(ProductItemSizeId);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product item size deleted successfully.");
+            NavigationManager.NavigateTo($"/productitem/{ProductId}");
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to delete product item size.");
+        }
+    }
+}

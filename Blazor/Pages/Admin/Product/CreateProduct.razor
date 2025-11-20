@@ -1,0 +1,164 @@
+﻿@page "/createproduct"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductService ProductService
+@inject GenderService GenderService
+@inject CategoryService CategoryService
+@inject CategoryItemService CategoryItemService
+@inject BrandService BrandService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Create Product</h3>
+
+<EditForm Model="product" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group mb-3">
+                <label for="gender">Gender</label>
+                <select id="gender" class="form-select" @onchange="async e => await OnGenderSelected(Convert.ToInt32(e.Value))">
+                    <option value="0">Select Gender</option>
+                    @if (genders != null && genders.Success)
+                    {
+                        @foreach (var gender in genders.Data)
+                        {
+                            <option value="@gender.Id">@gender.GenderName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="form-group mb-3">
+                <label for="category">Category</label>
+                <select id="category" class="form-select" @onchange="async e => await OnCategorySelected(Convert.ToInt32(e.Value))" disabled="@(categories == null || !categories.Success)">
+                    <option value="0">Select Category</option>
+                    @if (categories != null && categories.Success)
+                    {
+                        @foreach (var category in categories.Data)
+                        {
+                            <option value="@category.Id">@category.CategoryName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="form-group mb-3">
+                <label for="categoryItem">Category Item</label>
+                <select id="categoryItem" class="form-select" @onchange="OnCategoryItemSelected" disabled="@(categoryItems == null || !categoryItems.Success)">
+                    <option value="0">Select Category Item</option>
+                    @if (categoryItems != null && categoryItems.Success)
+                    {
+                        @foreach (var item in categoryItems.Data)
+                        {
+                            <option value="@item.Id">@item.CategoryItemName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="form-group mb-3">
+                <label for="brand">Brand</label>
+                <select id="brand" class="form-select" @bind="product.BrandId">
+                    <option value="0">Select Brand</option>
+                    @if (brands != null && brands.Success)
+                    {
+                        @foreach (var brand in brands.Data)
+                        {
+                            <option value="@brand.Id">@brand.BarndName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <hr />
+
+    <div class="form-group mb-3">
+        <label for="productName">Product Name</label>
+        <InputText id="productName" class="form-control" @bind-Value="product.ProductName" />
+        <ValidationMessage For="@(() => product.ProductName)" />
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="productDescription">Product Description</label>
+        <InputTextArea id="productDescription" class="form-control" @bind-Value="product.ProductDescription" />
+        <ValidationMessage For="@(() => product.ProductDescription)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create Product</button>
+</EditForm>
+
+@code {
+    private ResponseModel<List<GenderDto>>? genders;
+    private ResponseModel<List<CategoryDto>>? categories;
+    private ResponseModel<List<CategoryItemDto>>? categoryItems;
+    private ResponseModel<List<BrandDto>>? brands;
+    private CreateProductDto product = new CreateProductDto();
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        genders = await GenderService.GetGendersAsync();
+        brands = await BrandService.GetBrandsAsync();
+    }
+
+    private async Task OnGenderSelected(int genderId)
+    {
+        categories = null;
+        categoryItems = null;
+        product.CategoryItemId = 0;
+
+        if (genderId > 0)
+        {
+            categories = await CategoryService.GetCategoryByGenderAsync(genderId);
+        }
+    }
+
+    private async Task OnCategorySelected(int categoryId)
+    {
+        categoryItems = null;
+        product.CategoryItemId = 0;
+
+        if (categoryId > 0)
+        {
+            categoryItems = await CategoryItemService.GetCategoryItemByCategoryAsync(categoryId);
+        }
+    }
+
+    private void OnCategoryItemSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int categoryItemId))
+        {
+            product.CategoryItemId = categoryItemId;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        errorMessage = string.Empty;
+        var response = await ProductService.CreateProductAsync(product);
+
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product added successfully.");
+            NavigationManager.NavigateTo("/products");
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to add due to an unknown error.";
+            toastService.ShowError($"Add failed: {errorMessage}");
+        }
+    }
+}

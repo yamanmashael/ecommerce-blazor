@@ -1,0 +1,518 @@
+﻿@page "/dashboard_orders"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject OrderService OrderService
+@inject OrderStatusService OrderStatus
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3 class="mb-4">
+    <i class="bi bi-box-seam"></i> Order Management
+</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-funnel"></i> Filters
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label for="orderId" class="form-label">Order ID</label>
+                <input type="number" id="orderId" class="form-control" @bind="request.OrderId" />
+            </div>
+
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" class="form-select" @bind="request.Status">
+                    <option value="">All</option>
+                    @if (statuses is not null)
+                    {
+                        @foreach (var status in statuses)
+                        {
+                            <option value="@status.Id">@status.StatusName</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="paymentMethod" class="form-label">Payment Method</label>
+                <select id="paymentMethod" class="form-select" @bind="request.PaymentMethod">
+                    <option value="">All</option>
+                    <option value="Cash">Cash</option>
+                    <option value="CreditCard">Credit Card</option>
+                    <option value="Transfer">Bank Transfer</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="shippingCompany" class="form-label">Shipping Company</label>
+                <select id="shippingCompany" class="form-select" @bind="request.ShippingCompany">
+                    <option value="">All</option>
+                    <option value="Aras">Aras Kargo</option>
+                    <option value="Yurtiçi">Yurtiçi Kargo</option>
+                    <option value="MNG">MNG Kargo</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="startDate" class="form-label">Start Date</label>
+                <input type="date" id="startDate" class="form-control" @bind="request.StartDate" />
+            </div>
+
+            <div class="col-md-2">
+                <label for="endDate" class="form-label">End Date</label>
+                <input type="date" id="endDate" class="form-control" @bind="request.EndDate" />
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <button class="btn btn-primary" @onclick="ApplyFilter">
+                <i class="bi bi-search"></i> Search
+            </button>
+            <div class="col-md-2">
+                <label for="pageSize" class="form-label">Page Size</label>
+                <select id="pageSize" class="form-select" value="@request.PageSize" @onchange="OnPageSizeChanged">
+                    <option value="2">2</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr />
+@if (orders is null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading orders...</p>
+    </div>
+}
+else if (!orders.Success)
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @orders.ErrorMassage
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-info shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Total Orders</h5>
+                    <span class="fs-4 fw-bold">@orders.TotalCountOrder</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Total Revenue</h5>
+                    <span class="fs-4 fw-bold">@orders.TotalPrice.ToString("N2") ₺</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Completed Orders</h5>
+                    <span class="fs-4 fw-bold">@orders.Completed</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th><i class="bi bi-hash"></i> Id</th>
+                    <th><i class="bi bi-calendar"></i> Date</th>
+                    <th><i class="bi bi-currency-dollar"></i> Total</th>
+                    <th><i class="bi bi-check-circle"></i> Status</th>
+                    <th><i class="bi bi-credit-card"></i> Payment</th>
+                    <th><i class="bi bi-truck"></i> Shipping</th>
+                    <th><i class="bi bi-geo-alt"></i> Tracking No.</th>
+                    <th><i class="bi bi-gear"></i> Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in orders.Data!)
+                {
+                    <tr>
+                        <td>@o.Id</td>
+                        <td>@o.OrderDate.ToShortDateString()</td>
+                        <td>@o.TotalPrice.ToString("N2") ₺</td>
+                        <td>
+                            <span class="badge bg-secondary p-2">@o.Status</span>
+                            <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => OpenStatusModal(o.Id)" title="Edit Status">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <span class="badge @(o.PaymentStatus ? "bg-success" : "bg-danger") p-2">
+                                @(o.PaymentStatus ? "Paid" : "Unpaid")
+                            </span>
+                            <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => OpenPaymentModal(o.Id, o.PaymentStatus)" title="Edit Payment Status">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </td>
+                        <td>
+                            @o.ShippingCompany
+                            <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => OpenShippingModal(o.Id, o.ShippingCompany, o.TrackingNumber)" title="Edit Shipping Info">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </td>
+                        <td>
+                            @o.TrackingNumber
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-info text-white" @onclick="() => ShowDetails(o.Id)">
+                                <i class="bi bi-info-circle-fill me-1"></i> Details
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted">
+            Page: <span class="fw-bold text-primary">@request.PageNumber</span> / <span class="fw-bold text-primary">@orders.TotalPages</span> |
+            Page Size: <span class="fw-bold text-primary">@request.PageSize</span>
+        </div>
+        <nav>
+            <ul class="pagination mb-0">
+                <li class="page-item @(request.PageNumber <= 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(request.PageNumber - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= orders.TotalPages; i++)
+                {
+                    <li class="page-item @(request.PageNumber == i ? "active" : "")">
+                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                    </li>
+                }
+                <li class="page-item @(request.PageNumber >= orders.TotalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(request.PageNumber + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">Order Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (OrderDetails is null)
+                    {
+                        <p class="text-center text-muted">Loading details...</p>
+                    }
+                    else if (!OrderDetails.Any())
+                    {
+                        <p class="text-center text-muted">No details for this order.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mb-3">
+                            <table class="table table-bordered table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Size</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Image</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var detail in OrderDetails)
+                                    {
+                                        <tr>
+                                            <td>@detail.ProductName</td>
+                                            <td>@detail.SizeName</td>
+                                            <td>@detail.Quantity</td>
+                                            <td>@detail.Price.ToString("N2") ₺</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(detail.ImageUrl))
+                                                {
+                                                    <img src="@detail.ImageUrl" width="60" height="60" class="rounded" alt="Product Image" />
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="alert alert-secondary">
+                            <strong>Address:</strong> @OrderDetails.First().Adress
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showStatusModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Status</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Select new status:</label>
+                    <select class="form-select" @bind="statusDto.OrderStatusId">
+                        @foreach (var s in statuses)
+                        {
+                            <option value="@s.Id">@s.StatusName</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveStatus">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPaymentModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Payment Status</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Select payment status:</label>
+                    <InputSelect @bind-Value="paymentDto.PaymentStatus" class="form-select">
+                        <option value="true">Paid</option>
+                        <option value="false">Unpaid</option>
+                    </InputSelect>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SavePayment">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showShippingModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Shipping</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="shippingCompanyInput" class="form-label">Shipping Company</label>
+                        <input id="shippingCompanyInput" class="form-control" placeholder="Shipping Company" @bind="shippingDto.ShippingCompany" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="trackingNumberInput" class="form-label">Tracking Number</label>
+                        <input id="trackingNumberInput" class="form-control" placeholder="Tracking Number" @bind="shippingDto.TrackingNumber" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveShipping">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private RequestOrder request = new RequestOrder { PageSize = 10, PageNumber = 1 };
+    private ResponseOrder<IEnumerable<OrderDto>>? orders;
+    private List<OrderStatusDto> statuses = new();
+    private List<OrderDetailsDto>? OrderDetails;
+    private bool ShowModal = false;
+
+  
+    private UpdatePaymentStatusDto paymentDto = new();
+    private UpdateShippingDto shippingDto = new();
+    private UpdateStatusDto statusDto = new();
+
+    private bool showStatusModal = false;
+    private bool showPaymentModal = false;
+    private bool showShippingModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatusesAsync();
+        await LoadOrdersAsync();
+    }
+
+    private async Task LoadStatusesAsync()
+    {
+        var response = await OrderStatus.GetAllAsync();
+        if (response.Success && response.Data is not null)
+        {
+            statuses = response.Data.ToList();
+        }
+    }
+
+    private async Task ShowDetails(int orderId)
+    {
+        ShowModal = true;
+        OrderDetails = null; 
+        var response = await OrderService.GetOrderById(orderId);
+
+        if (response.Success && response.Data is not null)
+        {
+            OrderDetails = response.Data.ToList();
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to fetch order details.";
+            toastService.ShowError(errorMessage);
+            CloseModal(); 
+        }
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        orders = await OrderService.GetOrdersAsync(request);
+    }
+
+    private async Task ApplyFilter()
+    {
+        request.PageNumber = 1;
+        await LoadOrdersAsync();
+    }
+
+    private async Task ChangePage(int newPage)
+    {
+        if (orders is not null && newPage >= 1 && newPage <= orders.TotalPages)
+        {
+            request.PageNumber = newPage;
+            await LoadOrdersAsync();
+        }
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize))
+        {
+            request.PageSize = newSize;
+            request.PageNumber = 1;
+            await LoadOrdersAsync();
+        }
+    }
+
+    private void OpenStatusModal(int orderId)
+    {
+        statusDto = new UpdateStatusDto { OrderId = orderId };
+        showStatusModal = true;
+    }
+
+    private void OpenPaymentModal(int orderId, bool currentStatus)
+    {
+        paymentDto = new UpdatePaymentStatusDto
+            {
+                OrderId = orderId,
+                PaymentStatus = currentStatus
+            };
+        showPaymentModal = true;
+    }
+
+    private void OpenShippingModal(int orderId, string? company, string? tracking)
+    {
+        shippingDto = new UpdateShippingDto
+            {
+                OrderId = orderId,
+                ShippingCompany = company ?? string.Empty,
+                TrackingNumber = tracking ?? string.Empty
+            };
+        showShippingModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showStatusModal = false;
+        showPaymentModal = false;
+        showShippingModal = false;
+        ShowModal = false;
+        OrderDetails = null;
+    }
+
+    private async Task SaveStatus()
+    {
+        var result = await OrderService.UpdateStatusAsync(statusDto.OrderId, statusDto);
+        if (result.Success)
+        {
+            toastService.ShowSuccess("Status updated successfully");
+            await LoadOrdersAsync();
+            CloseModal();
+        }
+        else
+        {
+            toastService.ShowError(result.ErrorMassage ?? "An error occurred while updating the status.");
+        }
+    }
+
+    private async Task SavePayment()
+    {
+        var result = await OrderService.UpdatePaymentStatusAsync(paymentDto.OrderId, paymentDto);
+        if (result.Success)
+        {
+            toastService.ShowSuccess("Payment status updated successfully");
+            await LoadOrdersAsync();
+            CloseModal();
+        }
+        else
+        {
+            toastService.ShowError(result.ErrorMassage ?? "An error occurred while updating the payment status.");
+        }
+    }
+
+    private async Task SaveShipping()
+    {
+        var result = await OrderService.UpdateShippingAsync(shippingDto.OrderId, shippingDto);
+        if (result.Success)
+        {
+            toastService.ShowSuccess("Shipping information updated successfully");
+            await LoadOrdersAsync();
+            CloseModal();
+        }
+        else
+        {
+            toastService.ShowError(result.ErrorMassage ?? "An error occurred while updating shipping information.");
+        }
+    }
+}

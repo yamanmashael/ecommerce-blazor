@@ -1,0 +1,154 @@
+﻿```razor
+@page "/colors"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+@inject ColorService ColorService
+@inject IToastService ToastService
+
+@using Blazor.Data
+@using Blazor.Services
+@using System.ComponentModel.DataAnnotations
+@inject IToastService toastService
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-primary mb-3">Color Management</h3>
+
+<button class="btn btn-success mb-3" @onclick="ShowCreateModal">➕ Add Color</button>
+
+@if (colors == null)
+{
+    <p>Loading...</p>
+}
+else if (!colors.Any())
+{
+    <p>No data available</p>
+}
+else
+{
+    <table class="table table-bordered table-striped">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Color Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in colors)
+            {
+                <tr>
+                    <td>@c.Id</td>
+                    <td>@c.ColorName</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm me-2" @onclick="() => ShowEditModal(c)">✏ Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => Delete(c.Id)">🗑 Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" placeholder="Color Name"
+                           @bind="currentColor.ColorName" />
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="Save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<ColorDto> colors;
+    private bool showModal = false;
+    private string modalTitle;
+    private UpdateColorDto currentColor = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadColors();
+    }
+
+    private async Task LoadColors()
+    {
+        var result = await ColorService.GetColorsAsync();
+        if (result.Success)
+            colors = result.Data;
+        else
+            ToastService.ShowError(result.ErrorMassage);
+    }
+
+    private void ShowCreateModal()
+    {
+        currentColor = new UpdateColorDto();
+        modalTitle = "Add New Color";
+        showModal = true;
+    }
+
+    private void ShowEditModal(ColorDto dto)
+    {
+        currentColor = new UpdateColorDto { Id = dto.Id, ColorName = dto.ColorName };
+        modalTitle = "Edit Color";
+        showModal = true;
+    }
+
+    private async Task Save()
+    {
+        ResponseModel<object> result;
+        if (currentColor.Id == 0)
+        {
+            var createDto = new CreateColorDto { ColorName = currentColor.ColorName };
+            result = await ColorService.CreateColorAsync(createDto);
+        }
+        else
+        {
+            result = await ColorService.UpdateColorAsync(currentColor);
+        }
+
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Saved successfully");
+            await LoadColors();
+            CloseModal();
+        }
+        else
+        {
+            ToastService.ShowError(result.ErrorMassage);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        var result = await ColorService.DeleteColorAsync(id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Deleted successfully");
+            await LoadColors();
+        }
+        else
+        {
+            ToastService.ShowError(result.ErrorMassage);
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+}
+```

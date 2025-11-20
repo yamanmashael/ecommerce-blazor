@@ -1,0 +1,68 @@
+﻿@page "/createproductitemsize/{productItemId:int}/{productId:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductItemSizeService ProductItemSizeService
+@inject SizeService SizeService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+<h3>Add Product Item Size</h3>
+<a href="/productitem/@ProductItemId" class="btn btn-secondary mb-4">Back to Product Item Sizes</a>
+
+<EditForm Model="productItemSize" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <div class="form-group mb-3">
+        <label for="size">Size</label>
+        <select id="size" class="form-select" @bind="productItemSize.SizeId">
+            <option value="0">Select Size</option>
+            @if (sizes != null && sizes.Success)
+            {
+                @foreach (var size in sizes.Data)
+                {
+                    <option value="@size.Id">@size.SizeNmae</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group mb-3">
+        <label for="stock">Stock</label>
+        <InputNumber id="stock" class="form-control" @bind-Value="productItemSize.Stock" />
+        <ValidationMessage For="@(() => productItemSize.Stock)" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Product Item Size</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int ProductItemId { get; set; }
+
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private CreateProductItemSizeDto productItemSize = new CreateProductItemSizeDto();
+    private ResponseModel<List<SizeDto>>? sizes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        productItemSize.PrductItemId = ProductItemId;
+        sizes = await SizeService.GetAllAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var response = await ProductItemSizeService.CreateProductItemSizeAsync(productItemSize);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product item size added successfully.");
+            NavigationManager.NavigateTo($"/productitem/{ProductId}");
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Failed to add product item size.");
+        }
+    }
+}

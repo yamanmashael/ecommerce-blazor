@@ -1,0 +1,148 @@
+﻿@page "/product-details/{id:int}"
+@namespace Blazor.Pages
+
+<PageTitle>@product?.Name</PageTitle>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+}
+else if (product == null)
+{
+    <div class="alert alert-danger text-center">
+        @errorMessage
+    </div>
+}
+else
+{
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-md-6">
+                @if (!string.IsNullOrEmpty(mainImageUrl))
+                {
+                    <div class="main-image-container">
+                        <img src="@mainImageUrl"
+                             class="img-fluid rounded shadow-sm" alt="@product.Name" />
+                    </div>
+                    @if (selectedProductItem?.ImageFilenames != null && selectedProductItem.ImageFilenames.Count > 1)
+                    {
+                        <div class="row mt-3 g-2">
+                            @foreach (var imageUrl in selectedProductItem.ImageFilenames)
+                            {
+                                <div class="col-3">
+                                    <img src="@imageUrl"
+                                         class="img-thumbnail cursor-pointer @(imageUrl == mainImageUrl ? "border border-primary border-2" : "")"
+                                         alt="Thumbnail"
+                                         @onclick="@(() => ChangeMainImage(imageUrl))" />
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="main-image-container d-flex justify-content-center align-items-center bg-light rounded"
+                         style="height: 400px;">
+                        <span class="text-muted">No image available</span>
+                    </div>
+                }
+            </div>
+
+            <div class="col-md-6">
+                <h1 class="display-5 fw-bold">@product.Name</h1>
+                <p class="lead text-muted">@product.BrandName</p>
+                <hr />
+
+                @if (selectedProductItem != null)
+                {
+                    <div class="d-flex align-items-baseline mb-3">
+                        <span class="fs-4 fw-bold text-success me-2">
+                            @selectedProductItem.SalesPrice.ToString("C")
+                        </span>
+                        @if (selectedProductItem.SalesPrice > 0 && selectedProductItem.SalesPrice < selectedProductItem.Price)
+                        {
+                            <span class="text-muted text-decoration-line-through">
+                                @selectedProductItem.SalesPrice.ToString("C")
+                            </span>
+                        }
+                    </div>
+                }
+
+                @if (selectedProductItem?.ProductCode != null)
+                {
+                    <p class="text-muted small">Product Code: @selectedProductItem.ProductCode</p>
+                }
+
+                @if (product?.ProductItems != null && product.ProductItems.Count > 1)
+                {
+                    <h5 class="mt-4">Available Colors:</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var item in product.ProductItems)
+                        {
+                            <button class="btn @(item.Id == selectedProductItemId ? "btn-primary" : "btn-outline-primary")"
+                                    @onclick="() => SelectProductItem(item.Id)">
+                                @item.ColorName
+                            </button>
+                        }
+                    </div>
+                }
+
+                @if (selectedProductItem?.Sizes != null && selectedProductItem.Sizes.Any())
+                {
+                    <h5 class="mt-4">Available Sizes:</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var size in selectedProductItem.Sizes)
+                        {
+                            <button class="btn @(size.SizeId == selectedSizeId ? "btn-secondary" : "btn-outline-secondary")"
+                                    disabled="@(size.Stock == 0)"
+                                    @onclick="() => SelectSize(size.SizeId)">
+                                @size.SizeName
+                            </button>
+                        }
+                    </div>
+                }
+
+                @if (selectedSize != null)
+                {
+                    <div class="mt-3">
+                        @if (selectedSize.Stock > 5)
+                        {
+                            <span class="text-success fw-bold">In Stock</span>
+                        }
+                        else if (selectedSize.Stock > 0 && selectedSize.Stock <= 5)
+                        {
+                            <span class="text-warning fw-bold">Only @selectedSize.Stock left!</span>
+                        }
+                        else
+                        {
+                            <span class="text-danger fw-bold">Out of Stock</span>
+                        }
+                    </div>
+                }
+
+                <div class="d-flex gap-2 mt-4">
+                    <button class="btn btn-primary btn-lg"
+                            disabled="@(!CanAddToCart())"
+                            @onclick="@(() => AddToCart(selectedProductItem.Id, selectedSize.SizeId))">
+                        <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                    </button>
+
+                    <button class="btn btn-outline-danger btn-lg"
+                            @onclick="@(() => AddToFavorites(selectedProductItem.Id))">
+                        <i class="bi bi-heart me-2"></i> Add to Favorites
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(product?.Description))
+                {
+                    <h5 class="mt-5">Product Description:</h5>
+                    <p>@product.Description</p>
+                }
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,109 @@
+﻿@inherits LayoutComponentBase
+@using Blazor.Data
+@using Blazor.Services
+@using Blazored.Toast.Configuration
+@using System.Security.Claims
+
+<div class="main-container">
+    <header class="site-header sticky-top">
+        <div class="container header-content">
+            <div class="store-name">
+                <a href="/" class="store-logo">YAMAN STORE</a>
+            </div>
+
+            <div class="search-container mx-auto">
+                <div class="search-bar d-flex">
+                    <input type="text"
+                           class="form-control"
+                           placeholder="🔍 Search for products..."
+                           value="@searchText"
+                           @oninput="OnInputChanged"
+                           @onkeydown="HandleKeyDown" />
+
+                    <button class="btn btn-primary" @onclick="OnSearch">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </div>
+
+                @if (suggestions != null && suggestions.Count > 0)
+                {
+                    <div class="suggestion-list">
+                        @foreach (var s in suggestions)
+                        {
+                            <div class="suggestion-item" @onclick="@(()=>SelectSuggestion(s))">
+                                @s
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="header-icons">
+
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <li class="nav-item admin-nav-item">
+                            <a class="dropdown-item admin-panel-btn" href="/dashboard">
+                                <i class="bi bi-shield-lock-fill me-2"></i>
+                                Admin Panel
+                            </a>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+
+
+
+
+                <a href="/cart" class="cart-icon">
+                    <i class="fa fa-shopping-cart"></i>
+                    <span class="cart-quantity">@ProductQuantity</span>
+                </a>
+
+                <a class="header-icon-link" href="/favorites">
+                    <i class="bi bi-heart"></i>
+                </a>
+
+                <div class="user-account-dropdown dropdown">
+                    <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa fa-user"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                        <AuthorizeView>
+                            <Authorized>
+                                <li><a class="dropdown-item" href="/updateprofile">Account Information</a></li>
+                                <li><a class="dropdown-item" href="/updatepassword">Change Password</a></li>
+                                <li><a class="dropdown-item" href="/addresses">My Addresses</a></li>
+                                <li><a class="dropdown-item" href="/orders">My Orders</a></li>
+                                <li><a class="dropdown-item" href="/complaint-form">Contact Us</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" @onclick="Logout">Logout</a></li>
+                            </Authorized>
+                            <NotAuthorized>
+                                <li><a class="dropdown-item" href="/auth">Login / Register</a></li>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="content-wrapper d-flex">
+        <main class="main-body">
+            @Body
+        </main>
+    </div>
+
+    <FooterMain />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40j4weqpf9JgFM47wR1YhFjHjUq4M1WpXhC0p0z2QG6LgqB0s8N0g0r6lVz6Q6w0Fw0Fw0Fw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    @* The old inline <style> for the footer and search are now moved to MainLayout.razor.css *@
+
+</div>
+
+<BlazoredToasts Position="ToastPosition.TopRight"
+                Timeout="10"
+                IconType="IconType.FontAwesome"
+                SuccessClass="success-toast-override"
+                SuccessIcon="fa fa-thumbs-up"
+                ErrorIcon="fa fa-bug" />

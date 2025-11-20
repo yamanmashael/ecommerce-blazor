@@ -1,0 +1,231 @@
+﻿@page "/categoryitems"
+@attribute [Authorize(Roles = "Admin")]
+
+@inject GenderService GenderService
+@inject CategoryService CategoryService
+@inject CategoryItemService CategoryItemService
+@layout AdminLayout
+
+@inject IToastService ToastService
+@using Blazor.Data
+@using Blazor.Services
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-primary">Category Items Management</h3>
+
+<div class="mb-3">
+    <label>Gender:</label>
+    <select @onchange="OnGenderChanged" class="form-select">
+        <option value="">-- All --</option>
+        @if (genders != null)
+        {
+            @foreach (var g in genders)
+            {
+                <option value="@g.Id">@g.GenderName</option>
+            }
+        }
+    </select>
+</div>
+
+@if (categories != null && categories.Any())
+{
+    <div class="mb-3">
+        <label>Category:</label>
+        <select @onchange="OnCategoryChanged" class="form-select">
+            <option value="">-- All --</option>
+            @foreach (var c in categories)
+            {
+                <option value="@c.Id">@c.CategoryName</option>
+            }
+        </select>
+    </div>
+}
+
+<button class="btn btn-success mb-3" @onclick="ShowCreateForm">➕ Add New Item</button>
+
+@if (categoryItems == null)
+{
+    <p>Loading data...</p>
+}
+else if (!categoryItems.Any())
+{
+    <p>No items available</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in categoryItems)
+            {
+                <tr>
+                    <td>@item.CategoryItemName</td>
+                    <td>@item.CategoryItemDescription</td>
+                    <td>@item.CategoryName</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" @onclick="() => EditItem(item)">✏ Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteItem(item.Id)">🗑 Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showForm)
+{
+    <div class="card p-3 mt-3">
+        <h5>@(editMode ? "Edit Item" : "Add New Item")</h5>
+        <div class="mb-2">
+            <label>Name</label>
+            <input class="form-control" @bind="formModel.CategoryItemName" />
+        </div>
+        <div class="mb-2">
+            <label>Description</label>
+            <textarea class="form-control" @bind="formModel.CategoryItemDescription"></textarea>
+        </div>
+
+        <div class="mb-2">
+            <label>Category</label>
+            <select class="form-select" @bind="formModel.CategoryId">
+                @if (categories != null)
+                {
+                    @foreach (var c in categories)
+                    {
+                        <option value="@c.Id">@c.CategoryName</option>
+                    }
+                }
+            </select>
+        </div>
+        <button class="btn btn-primary" @onclick="SaveItem">💾 Save</button>
+        <button class="btn btn-secondary" @onclick="CancelForm">❌ Cancel</button>
+    </div>
+}
+
+@code {
+    private List<GenderDto> genders;
+    private List<CategoryDto> categories;
+    private List<CategoryItemDto> categoryItems;
+
+    private int? selectedGenderId;
+    private int? selectedCategoryId;
+
+    private bool showForm = false;
+    private bool editMode = false;
+    private UpdateCategoryItemDto formModel = new();
+
+    private int editItemId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllItems();
+        var gResponse = await GenderService.GetGendersAsync();
+        if (gResponse.Success)
+            genders = gResponse.Data;
+    }
+
+    private async Task LoadAllItems()
+    {
+        var response = await CategoryItemService.GetAllAsync();
+        if (response.Success)
+            categoryItems = response.Data;
+    }
+
+    private async Task OnGenderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int genderId))
+        {
+            selectedGenderId = genderId;
+            var cResponse = await CategoryService.GetCategoryByGenderAsync(genderId);
+            if (cResponse.Success)
+                categories = cResponse.Data;
+        }
+        else
+        {
+            selectedGenderId = null;
+            categories = null;
+            await LoadAllItems();
+        }
+    }
+
+    private async Task OnCategoryChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int categoryId))
+        {
+            selectedCategoryId = categoryId;
+            var response = await CategoryItemService.GetCategoryItemByCategoryAsync(categoryId);
+            if (response.Success)
+                categoryItems = response.Data;
+        }
+        else
+        {
+            selectedCategoryId = null;
+            await LoadAllItems();
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        showForm = true;
+        editMode = false;
+        formModel = new UpdateCategoryItemDto();
+    }
+
+    private void EditItem(CategoryItemDto item)
+    {
+        showForm = true;
+        editMode = true;
+        editItemId = item.Id;
+        formModel = new UpdateCategoryItemDto
+            {
+                CategoryItemName = item.CategoryItemName,
+                CategoryItemDescription = item.CategoryItemDescription,
+                CategoryId = item.CategoryId
+            };
+    }
+
+    private async Task SaveItem()
+    {
+        ResponseModel<object> response;
+        if (editMode)
+            response = await CategoryItemService.UpdateAsync(editItemId, formModel);
+        else
+            response = await CategoryItemService.CreateAsync(new CreateCategoryItemDto
+                {
+                    CategoryItemName = formModel.CategoryItemName,
+                    CategoryItemDescription = formModel.CategoryItemDescription,
+                    CategoryId = formModel.CategoryId
+                });
+
+        if (response.Success)
+        {
+            await LoadAllItems();
+            CancelForm();
+        }
+        else
+        {
+            Console.WriteLine(response.ErrorMassage);
+        }
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        var response = await CategoryItemService.DeleteAsync(id);
+        if (response.Success)
+            await LoadAllItems();
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editMode = false;
+    }
+}

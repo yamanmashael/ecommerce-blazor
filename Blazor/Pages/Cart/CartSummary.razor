@@ -1,0 +1,130 @@
+﻿@page "/cart-summary"
+@attribute [Authorize]
+
+<PageTitle>Order Summary</PageTitle>
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Order Summary</h1>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading cart...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger text-center">@errorMessage</div>
+    }
+    else if (cartDto?.CartItemDto == null || !cartDto.CartItemDto.Any())
+    {
+        <div class="alert alert-info text-center">Your cart is empty. Start shopping now!</div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5>Cart Items</h5>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var item in cartDto.CartItemDto)
+                        {
+                            <div class="card mb-3 shadow-sm">
+                                <div class="row g-0">
+                                    <div class="col-md-3 d-flex align-items-center justify-content-center p-3">
+                                        <img src="@item.ImageUrl" class="img-fluid rounded-start cart-item-image" alt="@item.ProductName" />
+                                    </div>
+                                    <div class="col-md-9">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h5 class="card-title">@item.ProductName</h5>
+                                                    <p class="card-text text-muted">Brand: @item.BrandName</p>
+                                                    <p class="card-text text-muted">Color: @item.ColorName | Size: @item.SizeName</p>
+                                                    <p class="card-text fw-bold text-success">@item.Price.ToString("C")</p>
+                                                </div>
+                                            </div>
+                                            <div class="input-group" style="width: 120px;">
+                                                <input type="text" class="form-control text-center" value="@item.Quantity" readonly />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @if (addresses != null)
+                {
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5>Delivery Address</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Name:</strong> @addresses.FullName</p>
+                            <p class="mb-1"><strong>Phone:</strong> @addresses.PhoneNumber</p>
+                            <p class="mb-1"><strong>Address:</strong> @addresses.City, @addresses.FullAddress</p>
+                            <a href="/select-address" class="btn btn-sm btn-link mt-2 p-0">Change Address</a>
+                        </div>
+                    </div>
+                }
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5>Payment Method</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <select @bind="selectedPaymentMethod" class="form-select">
+                                <option value="cash_on_delivery">Cash on Delivery</option>
+                            </select>
+                        </div>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="termsCheckbox" @bind="termsAccepted" />
+                            <label class="form-check-label" for="termsCheckbox">
+                                I agree to the <a href="#">Terms & Conditions</a>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm p-3 sticky-top" style="top: 20px;">
+                    <h5 class="card-title text-center">Order Summary</h5>
+                    <hr />
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span>@cartDto.TotalPrice.ToString("C")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Shipping:</span>
+                        <span>Free</span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between fw-bold fs-5 text-success">
+                        <span>Total:</span>
+                        <span>@cartDto.TotalPrice.ToString("C")</span>
+                    </div>
+                    <button class="btn btn-success btn-lg mt-3 w-100" @onclick="FinalizeOrder">
+                        <i class="fa fa-check-circle"></i> Confirm Order
+                    </button>
+                    <a href="/cart" class="btn btn-secondary mt-2 w-100">Back to Cart</a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .cart-item-image {
+        max-width: 150px;
+        max-height: 150px;
+        object-fit: contain;
+    }
+</style>

@@ -1,0 +1,215 @@
+﻿@page "/categories"
+@attribute [Authorize(Roles = "Admin")]
+
+@inject IToastService ToastService
+@using Blazor.Data
+@using Blazor.Services
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JSRuntime
+@layout AdminLayout
+
+@inject CategoryService CategoryService
+@inject GenderService GenderService
+@inject IToastService ToastService
+
+<h3 class="mb-4 text-primary">Category Management</h3>
+
+<div class="mb-3">
+    <label class="form-label">Select Gender:</label>
+    <select class="form-select" @onchange="OnGenderChanged">
+        <option value="">-- All --</option>
+        @foreach (var g in genders)
+        {
+            <option value="@g.Id">@g.GenderName</option>
+        }
+    </select>
+</div>
+
+@if (categories == null)
+{
+    <p>Loading data...</p>
+}
+else
+{
+    <button class="btn btn-success mb-3" @onclick="ShowAddDialog">➕ Add</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Category</th>
+                <th>Gender</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in categories)
+            {
+                <tr>
+                    <td>@c.Id</td>
+                    <td>@c.CategoryName</td>
+                    <td>@c.GenderName</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm me-2" @onclick="() => ShowEditDialog(c)">✏️ Edit</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => Delete(c.Id)">🗑 Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showDialog)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@dialogTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Category Name</label>
+                        <input class="form-control" @bind="categoryModel.CategoryName" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gender</label>
+                        <select class="form-select" @bind="categoryModel.GenderId">
+                            @foreach (var g in genders)
+                            {
+                                <option value="@g.Id">@g.GenderName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
+                    <button class="btn btn-primary" @onclick="Save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CategoryDto> categories;
+    private List<GenderDto> genders = new();
+    private bool showDialog = false;
+    private string dialogTitle;
+    private CategoryDto categoryModel = new();
+    private bool isEdit = false;
+    private int? selectedGenderId = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGenders();
+        await LoadCategories();
+    }
+
+    private async Task LoadGenders()
+    {
+        var result = await GenderService.GetGendersAsync();
+        if (result.Success)
+            genders = result.Data;
+        else
+            ToastService.ShowError(result.ErrorMassage);
+    }
+
+    private async Task LoadCategories()
+    {
+        ResponseModel<List<CategoryDto>> result;
+
+        if (selectedGenderId.HasValue)
+            result = await CategoryService.GetCategoryByGenderAsync(selectedGenderId.Value);
+        else
+            result = await CategoryService.GetAllCategoriesAsync();
+
+        if (result.Success)
+            categories = result.Data;
+        else
+            ToastService.ShowError(result.ErrorMassage);
+    }
+
+    private async Task OnGenderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int genderId))
+            selectedGenderId = genderId;
+        else
+            selectedGenderId = null;
+
+        await LoadCategories();
+    }
+
+    private void ShowAddDialog()
+    {
+        isEdit = false;
+        dialogTitle = "Add New Category";
+        categoryModel = new CategoryDto();
+        showDialog = true;
+    }
+
+    private void ShowEditDialog(CategoryDto dto)
+    {
+        isEdit = true;
+        dialogTitle = "Edit Category";
+        categoryModel = new CategoryDto
+            {
+                Id = dto.Id,
+                CategoryName = dto.CategoryName,
+                GenderId = dto.GenderId,
+                GenderName = dto.GenderName
+            };
+        showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(categoryModel.CategoryName))
+        {
+            ToastService.ShowWarning("Please enter a name");
+            return;
+        }
+
+        if (isEdit)
+        {
+            var response = await CategoryService.UpdateCategoryAsync(categoryModel.Id,
+                new UpdateCategoryDto { CategoryName = categoryModel.CategoryName, GenderId = categoryModel.GenderId });
+            if (response.Success)
+                ToastService.ShowSuccess("Updated successfully");
+            else
+                ToastService.ShowError(response.ErrorMassage);
+        }
+        else
+        {
+            var response = await CategoryService.CreateCategoryAsync(
+                new CreateCategoryDto { CategoryName = categoryModel.CategoryName, GenderId = categoryModel.GenderId });
+            if (response.Success)
+                ToastService.ShowSuccess("Added successfully");
+            else
+                ToastService.ShowError(response.ErrorMassage);
+        }
+
+        CloseDialog();
+        await LoadCategories();
+    }
+
+    private async Task Delete(int id)
+    {
+        var response = await CategoryService.DeleteCategoryAsync(id);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("Deleted successfully");
+            await LoadCategories();
+        }
+        else
+        {
+            ToastService.ShowError(response.ErrorMassage);
+        }
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+    }
+}

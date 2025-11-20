@@ -1,0 +1,275 @@
+﻿@page "/ProductFilter"
+@using Blazor.Services
+@using Blazor.Data
+
+<div class="product-filter-page">
+    <h3>Product Catalog</h3>
+
+    <div class="d-md-none mb-3">
+        <button class="btn btn-dark w-100"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#filtersPanel"
+                aria-expanded="false"
+                aria-controls="filtersPanel">
+            Filters
+        </button>
+    </div>
+
+    <div class="row">
+        <div id="filtersPanel" class="col-12 col-md-3 filter-sidebar collapse d-md-block">
+
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Gender @(Filter.GenderIds.Any() ? $"({Filter.GenderIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (Genders != null)
+                        {
+                            foreach (var g in Genders)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="gender_@g.Id"
+                                               checked="@Filter.GenderIds.Contains(g.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, g.Id, nameof(Filter.GenderIds))" />
+                                        <label class="form-check-label w-100" for="gender_@g.Id">@g.GenderName</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Brands @(Filter.BrandIds.Any() ? $"({Filter.BrandIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (Brands != null)
+                        {
+                            foreach (var b in Brands)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="brand_@b.Id"
+                                               checked="@Filter.BrandIds.Contains(b.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, b.Id, nameof(Filter.BrandIds))" />
+                                        <label class="form-check-label w-100" for="brand_@b.Id">@b.BarndName</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+          
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Sizes @(Filter.SizeIds.Any() ? $"({Filter.SizeIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (Sizes != null)
+                        {
+                            foreach (var s in Sizes)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="size_@s.Id"
+                                               checked="@Filter.SizeIds.Contains(s.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, s.Id, nameof(Filter.SizeIds))" />
+                                        <label class="form-check-label w-100" for="size_@s.Id">@s.SizeNmae</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+    
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Colors @(Filter.ColorIds.Any() ? $"({Filter.ColorIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (Colors != null)
+                        {
+                            foreach (var c in Colors)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="color_@c.Id"
+                                               checked="@Filter.ColorIds.Contains(c.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, c.Id, nameof(Filter.ColorIds))" />
+                                        <label class="form-check-label w-100" for="color_@c.Id">@c.ColorName</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+         
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Categories @(Filter.CategoryIds.Any() ? $"({Filter.CategoryIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (Categories != null)
+                        {
+                            foreach (var cat in Categories)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="category_@cat.Id"
+                                               checked="@Filter.CategoryIds.Contains(cat.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, cat.Id, nameof(Filter.CategoryIds))" />
+                                        <label class="form-check-label w-100" for="category_@cat.Id">@cat.CategoryName</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+    
+            <div class="filter-section mb-4">
+                <div class="dropdown">
+                    <button class="btn btn-filter dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Subcategories @(Filter.CategoryItemIds.Any() ? $"({Filter.CategoryItemIds.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu w-100 dropdown-menu-start">
+                        @if (CategoryItems != null)
+                        {
+                            foreach (var item in CategoryItems)
+                            {
+                                <li>
+                                    <div class="form-check dropdown-item">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="categoryItem_@item.Id"
+                                               checked="@Filter.CategoryItemIds.Contains(item.Id)"
+                                               @onchange="(e) => OnFilterChanged(e.Value, item.Id, nameof(Filter.CategoryItemIds))" />
+                                        <label class="form-check-label w-100" for="categoryItem_@item.Id">@item.CategoryItemName</label>
+                                    </div>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+
+          
+            <div class="filter-section mb-4">
+                <h5 class="filter-title">Price Range</h5>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label for="minPrice" class="form-label small">Min Price</label>
+                        <input type="number" class="form-control" id="minPrice"
+                               @bind="minPriceValue" placeholder="Min" />
+                    </div>
+                    <div class="col-6">
+                        <label for="maxPrice" class="form-label small">Max Price</label>
+                        <input type="number" class="form-control" id="maxPrice"
+                               @bind="maxPriceValue" placeholder="Max" />
+                    </div>
+                </div>
+                <button class="btn btn-dark w-100 mt-2" @onclick="ApplyPriceFilter">Apply Price</button>
+            </div>
+
+            <button class="btn btn-outline-dark w-100" @onclick="ResetFilters">Reset Filters</button>
+        </div>
+
+     
+        <div class="col-12 col-md-9 product-list-container">
+            @if (isLoading)
+            {
+                <div class="text-center mt-5">
+                    <div class="spinner-border text-dark" role="status"></div>
+                    <p class="mt-2">Loading Products...</p>
+                </div>
+            }
+            else if (Products != null && Products.Any())
+            {
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+                    @foreach (var p in Products)
+                    {
+                        <div class="col">
+                            <div class="card h-100 product-card">
+                                <div class="product-image-wrapper">
+                                    @if ((p.productFiltrImagees ?? Enumerable.Empty<ProductFiltrImageeDto>()).Any())
+                                    {
+                                        var idx = CurrentImageIndex.GetValueOrDefault(p.ProductId, 0);
+
+                                        <img class="card-img-top product-img"
+                                             src="@p.productFiltrImagees.ElementAt(idx).ImageFilename"
+                                             alt="@p.ProductName" />
+
+                                        <div class="img-nav-overlay" @onclick="() => NavigateToProductDetails(p.ProductId)">
+                                            <div class="nav-area nav-prev" @onclick:stopPropagation="true" @onclick="() => PrevImage(p.ProductId)"></div>
+                                            <div class="nav-area nav-next" @onclick:stopPropagation="true" @onclick="() => NextImage(p.ProductId)"></div>
+                                        </div>
+
+                                        <div class="image-indicators">
+                                            @for (int i = 0; i < p.productFiltrImagees.Count(); i++)
+                                            {
+                                                <span class="indicator-dot @(i == idx ? "active" : "")"></span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="no-image-placeholder d-flex align-items-center justify-content-center h-100">
+                                            No Image
+                                        </div>
+                                    }
+
+                                    <button class="btn-favorite" @onclick="@(() => AddToFavorites(p.ProductItemId))">
+                                        <i class="bi bi-heart"></i>
+                                    </button>
+                                </div>
+
+                                <div class="card-body text-center">
+                                    <p class="card-text product-brand">@p.BarndName</p>
+                                    <h5 class="card-title product-name">@p.ProductName</h5>
+                                    <p class="card-text product-price">@p.SalesPrice.ToString("C")</p>
+
+                                    <a href="/product-details/@p.ProductId"
+                                       class="btn btn-outline-dark btn-details">
+                                        View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning text-center">
+                    No products match your filter criteria. 😔
+                </div>
+            }
+        </div>
+    </div>
+</div>

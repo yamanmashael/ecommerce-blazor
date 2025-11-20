@@ -1,0 +1,22 @@
+﻿@page "/logout"
+
+@using Blazor.Authentication
+@using Blazor.Services
+@using Blazor.Data
+@using Blazor.Shared
+
+@inject AccountService accountService
+@inject NavigationManager navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ((CustonAuthStateProvider)AuthStateProvider).MarkUserAsLoggedOut();
+
+        await Task.Delay(100);
+     
+        navigation.NavigateTo("/");
+    }
+}

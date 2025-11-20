@@ -1,0 +1,488 @@
+﻿@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject UserService UserService
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+
+<div class="d-flex justify-content-end mb-3">
+    <button class="btn btn-success shadow-sm" @onclick="() => ShowCreateModal()">
+        <i class="bi bi-person-plus-fill me-2"></i> Add User
+    </button>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" data-bs-target="#filtersCollapse"
+         aria-expanded="true" aria-controls="filtersCollapse" style="cursor: pointer;">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-sliders me-2 text-primary"></i> Filters & Search
+        </h5>
+        <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="collapse show" id="filtersCollapse">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Roles</label>
+                    <select class="form-select"
+                            @onchange="async e => await OnRoleSelected(Convert.ToInt32(e.Value))">
+                        <option value="0">All Roles</option>
+                        @if (roles != null && roles.Success && roles.Data != null)
+                        {
+                            @foreach (var role in roles.Data)
+                            {
+                                <option value="@role.Id">@role.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-9">
+                    <label class="form-label fw-bold">Search User</label>
+                    <div class="input-group shadow-sm">
+                        <input type="text" class="form-control" placeholder="Search by name or email..."
+                               @bind="request.SearchTerm" @onkeydown="HandleKeyDown" />
+                        <button class="btn btn-primary" @onclick="ApplySearch">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center py-5">
+        <div class="spinner-border text-primary me-3" role="status"></div>
+        <span class="text-muted fs-5">Loading data...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger d-flex align-items-center shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div>@errorMessage</div>
+    </div>
+}
+else if (users == null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading users...</p>
+    </div>
+}
+else if (!users.Success)
+{
+    <div class="alert alert-danger shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @users.ErrorMassage
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        @if (users.TotalCount.HasValue)
+        {
+            <div class="fw-bold text-muted">
+                Total Users: <span class="text-primary">@users.TotalCount</span>
+            </div>
+        }
+
+        <div class="d-flex align-items-center">
+            <label class="form-label me-2 mb-0">Page Size:</label>
+            <select class="form-select me-3 shadow-sm" style="width: 120px;"
+                    @onchange="async e => await ChangePageSize(Convert.ToInt32(e.Value))">
+                <option value="5" selected="@(request.PageSize == 5)">5</option>
+                <option value="10" selected="@(request.PageSize == 10)">10</option>
+                <option value="20" selected="@(request.PageSize == 20)">20</option>
+                <option value="50" selected="@(request.PageSize == 50)">50</option>
+            </select>
+
+            @if (users.PageNumber.HasValue && users.TotalPages.HasValue)
+            {
+                <div class="text-muted">
+                    Page <span class="fw-bold">@users.PageNumber</span> of <span class="fw-bold">@users.TotalPages</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover table-bordered table-striped text-center align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Surname</th>
+                    <th>Joined Date</th>
+                    <th>Email</th>
+                    <th>Email Confirmed</th>
+                    <th>Roles</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users.Data)
+                {
+                    <tr>
+                        <td>@user.Id</td>
+                        <td>@user.Name</td>
+                        <td>@user.Surname</td>
+                        <td>@user.CreatedAt</td>
+                        <td>@user.Email</td>
+                        <td>
+                            @if (user.EmailConfirmed)
+                            {
+                                <span class="badge bg-success">Confirmed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Not Confirmed</span>
+                            }
+                        </td>
+                        <td>
+                            @if (user.Roles != null && user.Roles.Any())
+                            {
+                                @foreach (var role in user.Roles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-warning text-white"
+                                        @onclick="() => HideUpdateModal(user.Id,user.Name,user.Surname, user.EmailConfirmed)"
+                                        title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger"
+                                        @onclick="() => ShowDeleteModal(user.Id,user.Email)"
+                                        title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <a href="/user_Role/@user.Id" class="btn btn-sm btn-info text-white" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted">
+            Page: <span class="fw-bold text-primary">@request.PageNumber</span> / <span class="fw-bold text-primary">@users.TotalPages</span>
+        </div>
+        <nav>
+            <ul class="pagination mb-0">
+                <li class="page-item @(request.PageNumber <= 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(request.PageNumber - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= users.TotalPages; i++)
+                {
+                    <li class="page-item @(request.PageNumber == i ? "active" : "")">
+                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                    </li>
+                }
+                <li class="page-item @(request.PageNumber >= users.TotalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(request.PageNumber + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i> Add New User</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Name</label>
+                        <input type="text" @bind-value="newUser.Name" class="form-control shadow-sm" placeholder="Full Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Surname</label>
+                        <input type="text" @bind-value="newUser.Surname" class="form-control shadow-sm" placeholder="Surname" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" @bind-value="newUser.Email" class="form-control shadow-sm" placeholder="example@domain.com" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Password</label>
+                        <input type="password" @bind-value="newUser.Password" class="form-control shadow-sm" placeholder="Strong Password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="HandleCreate">
+                        <i class="bi bi-save me-2"></i> Save
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showUpdateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Edit User</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Name</label>
+                        <input type="text" @bind-value="updateUser.Name" class="form-control shadow-sm" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Surname</label>
+                        <input type="text" @bind-value="updateUser.Surname" class="form-control shadow-sm" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email Confirmation</label>
+                        <InputRadioGroup @bind-Value="updateUser.EmailConfirmed" class="d-flex gap-3">
+                            <label class="form-check">
+                                <InputRadio Value="true" class="form-check-input" /> Enabled
+                            </label>
+                            <label class="form-check">
+                                <InputRadio Value="false" class="form-check-input" /> Disabled
+                            </label>
+                        </InputRadioGroup>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-warning text-white" @onclick="HandleUpdate">
+                        <i class="bi bi-save me-2"></i> Save
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,.5);">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-trash me-2"></i> Confirm Deletion</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="fs-5 text-muted">
+                        Are you sure you want to delete user <span class="fw-bold text-dark">@email</span>?
+                        <br /><small class="text-danger">This action cannot be undone.</small>
+                    </p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button class="btn btn-danger" @onclick="HandleDelete">
+                        <i class="bi bi-trash-fill me-2"></i> Delete
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private RequestUserDto request = new RequestUserDto();
+    private ResponseModel<IEnumerable<RoleDto>>? roles;
+    private ResponseModel<IEnumerable<UserDto>>? users;
+    private CreateUserDto newUser = new CreateUserDto();
+    private UpdateUserDto updateUser = new UpdateUserDto();
+    private int userToDeleteId;
+    private string email;
+    private bool showUpdateModal = false;
+    private bool isLoading = false;
+    private string? errorMessage;
+    private bool ShowModal = false;
+    private bool showDeleteModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        request.PageSize = 10;
+        request.PageNumber = 1;
+        await LoadRoles();
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            users = null;
+            isLoading = true;
+            errorMessage = null;
+            var result = await UserService.GetUsersAsync(request);
+            if (result.Success)
+            {
+                users = result;
+            }
+            else
+            {
+                ToastService.ShowError(result.ErrorMassage ?? "Failed to load users.");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unexpected error: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadRoles()
+    {
+        var result = await UserService.GetRolesAsync();
+        if (result.Success)
+        {
+            roles = result;
+        }
+        else
+        {
+            ToastService.ShowError(result.ErrorMassage ?? "Failed to load roles.");
+        }
+    }
+
+    private async Task OnRoleSelected(int RoleId)
+    {
+        request.RoleId = RoleId > 0 ? RoleId : null;
+        request.PageNumber = 1;
+        await LoadUsers();
+    }
+
+    private void ShowCreateModal()
+    {
+        ShowModal = true;
+    }
+
+    private async Task HandleCreate()
+    {
+        var response = await UserService.CreateUserAsync(newUser);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("User created successfully!");
+            await LoadUsers();
+        }
+        else
+        {
+            ToastService.ShowError($"Failed to create user: {response.ErrorMassage}");
+        }
+        ShowModal = false;
+    }
+
+    private void HideUpdateModal(int Id, string name, string Surname, bool EmailCon)
+    {
+        showUpdateModal = true;
+        updateUser = new UpdateUserDto
+            {
+                Id = Id,
+                Surname = Surname,
+                Name = name,
+                EmailConfirmed = EmailCon
+            };
+    }
+
+    private async Task HandleUpdate()
+    {
+        var response = await UserService.UpdateUserAsync(updateUser);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("User updated successfully!");
+            await LoadUsers();
+        }
+        else
+        {
+            ToastService.ShowError($"Failed to update user: {response.ErrorMassage}");
+        }
+        showUpdateModal = false;
+    }
+
+    private void ShowDeleteModal(int userId, string Email)
+    {
+        userToDeleteId = userId;
+        email = Email;
+        showDeleteModal = true;
+    }
+
+    private async Task HandleDelete()
+    {
+        var response = await UserService.DeleteUserAsync(userToDeleteId);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("User deleted successfully!");
+            await LoadUsers();
+        }
+        else
+        {
+            ToastService.ShowError($"Failed to delete user: {response.ErrorMassage}");
+        }
+        showDeleteModal = false;
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        showDeleteModal = false;
+        showUpdateModal = false;
+    }
+
+    private async Task ChangePage(int newPage)
+    {
+        if (users != null && newPage >= 1 && newPage <= users.TotalPages)
+        {
+            request.PageNumber = newPage;
+            await LoadUsers();
+        }
+    }
+
+    private async Task ChangePageSize(int newPageSize)
+    {
+        request.PageSize = newPageSize;
+        request.PageNumber = 1;
+        await LoadUsers();
+    }
+
+    private async Task ApplySearch()
+    {
+        request.PageNumber = 1;
+        await LoadUsers();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplySearch();
+        }
+    }
+}

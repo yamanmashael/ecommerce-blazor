@@ -1,0 +1,241 @@
+﻿@page "/addresses"
+@attribute [Authorize]
+
+@using Blazor.Data
+@using Blazor.Services
+@inject AddressService AddressService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+@attribute [Authorize]
+
+<h3 class="mb-4 text-primary">My Addresses</h3>
+
+<button class="btn btn-primary mb-4" @onclick="ShowCreateModal">Add New Address</button>
+
+@if (addresses == null)
+{
+    <p><em>Loading addresses...</em></p>
+}
+else if (!addresses.Any())
+{
+    <p><em>No addresses found. Add a new one!</em></p>
+}
+else
+{
+    <div class="row">
+        @foreach (var address in addresses)
+        {
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">@address.FullName</h5>
+                        <p class="card-text mb-1"><strong>Phone Number:</strong> @address.PhoneNumber</p>
+                        <p class="card-text mb-1"><strong>City:</strong> @address.City</p>
+                        <p class="card-text"><strong>Full Address:</strong><br />@address.FullAddress</p>
+                        <div class="d-flex justify-content-between mt-3">
+                            <button class="btn btn-sm btn-info" @onclick="() => ShowEditModal(address.Id)">Edit</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteAddress(address.Id)">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (showModal)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="btn-close" @onclick="HideModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (isEditMode)
+                    {
+                        @if (updateAddressDto != null)
+                        {
+                            <EditForm Model="@updateAddressDto" OnValidSubmit="@HandleValidSubmit">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+                                <div class="mb-3">
+                                    <label for="fullName" class="form-label">Full Name</label>
+                                    <InputText id="fullName" class="form-control" @bind-Value="updateAddressDto.FullName" />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <InputText id="phoneNumber" class="form-control" @bind-Value="updateAddressDto.PhoneNumber" />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="city" class="form-label">City</label>
+                                    <InputText id="city" class="form-control" @bind-Value="updateAddressDto.City" />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="fullAddress" class="form-label">Full Address</label>
+                                    <InputTextArea id="fullAddress" class="form-control" @bind-Value="updateAddressDto.FullAddress" rows="3" />
+                                </div>
+                                <div class="modal-footer d-flex justify-content-between">
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    <button type="button" class="btn btn-secondary" @onclick="HideModal">Cancel</button>
+                                </div>
+                            </EditForm>
+                        }
+                        else
+                        {
+                            <p>Loading address...</p>
+                        }
+                    }
+                    else
+                    {
+                        <EditForm Model="@createAddressDto" OnValidSubmit="@HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+                            <div class="mb-3">
+                                <label for="fullName" class="form-label">Full Name</label>
+                                <InputText id="fullName" class="form-control" @bind-Value="createAddressDto.FullName" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="phoneNumber" class="form-label">Phone Number</label>
+                                <InputText id="phoneNumber" class="form-control" @bind-Value="createAddressDto.PhoneNumber" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="city" class="form-label">City</label>
+                                <InputText id="city" class="form-control" @bind-Value="createAddressDto.City" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="fullAddress" class="form-label">Full Address</label>
+                                <InputTextArea id="fullAddress" class="form-control" @bind-Value="createAddressDto.FullAddress" rows="3" />
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between">
+                                <button type="submit" class="btn btn-primary">Create Address</button>
+                                <button type="button" class="btn btn-secondary" @onclick="HideModal">Cancel</button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<AddressDto> addresses;
+    private string errorMessage;
+    private bool showModal = false;
+    private bool isEditMode = false;
+    private string modalTitle = string.Empty;
+    private CreateAddressDto createAddressDto = new();
+    private UpdateAddressDto updateAddressDto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAddresses();
+    }
+
+    private async Task LoadAddresses()
+    {
+        var response = await AddressService.GetAllAddressesAsync();
+        if (response.Success)
+        {
+            addresses = response.Data;
+        }
+        else
+        {
+            var error = response?.ErrorMassage ?? "Unknown error while loading addresses.";
+            toastService.ShowError($"Failed to load: {error}");
+        }
+    }
+
+    private async Task DeleteAddress(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this address?");
+        if (confirmed)
+        {
+            var response = await AddressService.DeleteAddressAsync(id);
+            if (response.Success)
+            {
+                await LoadAddresses();
+                toastService.ShowSuccess("Address deleted successfully.");
+            }
+            else
+            {
+                var error = response?.ErrorMassage ?? "Failed to delete address.";
+                toastService.ShowError($"Error: {error}");
+            }
+        }
+    }
+
+    private void ShowCreateModal()
+    {
+        isEditMode = false;
+        createAddressDto = new();
+        modalTitle = "Add New Address";
+        showModal = true;
+    }
+
+    private async Task ShowEditModal(int id)
+    {
+        isEditMode = true;
+        modalTitle = "Edit Address";
+        var response = await AddressService.GetAddressByIdAsync(id);
+        if (response.Success)
+        {
+            updateAddressDto = new UpdateAddressDto
+                {
+                    Id = response.Data.Id,
+                    FullName = response.Data.FullName,
+                    PhoneNumber = response.Data.PhoneNumber,
+                    City = response.Data.City,
+                    FullAddress = response.Data.FullAddress
+                };
+            showModal = true;
+        }
+        else
+        {
+            var error = response.ErrorMassage ?? "Failed to fetch address.";
+            toastService.ShowError($"Fetch error: {error}");
+        }
+    }
+
+    private void HideModal() => showModal = false;
+
+    private async Task HandleValidSubmit()
+    {
+        if (isEditMode)
+        {
+            var response = await AddressService.UpdateAddressAsync(updateAddressDto);
+            if (response.Success)
+            {
+                await LoadAddresses();
+                toastService.ShowSuccess("Address updated successfully.");
+                HideModal();
+            }
+            else
+            {
+                var error = response.ErrorMassage ?? "Update failed due to an unknown error.";
+                toastService.ShowError($"Update failed: {error}");
+            }
+        }
+        else
+        {
+            var response = await AddressService.CreateAddressAsync(createAddressDto);
+            if (response.Success)
+            {
+                await LoadAddresses();
+                toastService.ShowSuccess("Address added successfully.");
+                HideModal();
+            }
+            else
+            {
+                var error = response.ErrorMassage ?? "Creation failed due to an unknown error.";
+                toastService.ShowError($"Creation failed: {error}");
+            }
+        }
+    }
+
+    [Inject]
+    protected Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; }
+}

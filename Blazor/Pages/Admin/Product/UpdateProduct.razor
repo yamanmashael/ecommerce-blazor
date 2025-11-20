@@ -1,0 +1,214 @@
+﻿@page "/updateproduct/{id:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@layout AdminLayout
+
+@using Blazor.Data
+@using Blazor.Services
+@inject ProductService ProductService
+@inject GenderService GenderService
+@inject CategoryService CategoryService
+@inject CategoryItemService CategoryItemService
+@inject BrandService BrandService
+@inject NavigationManager NavigationManager
+@inject IToastService toastService
+
+@if (productToUpdate == null)
+{
+    <p>Loading...</p>
+}
+else if (!isLoaded)
+{
+    <div class="alert alert-danger">Failed to load product details.</div>
+}
+else
+{
+    <EditForm Model="productToUpdate" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group mb-3">
+                    <label for="gender">Gender</label>
+                    <select id="gender" class="form-select" @onchange="async e => await OnGenderSelected(Convert.ToInt32(e.Value))">
+                        <option value="0">Select Gender</option>
+                        @if (genders != null && genders.Success)
+                        {
+                            @foreach (var gender in genders.Data)
+                            {
+                                <option value="@gender.Id" selected="@(gender.Id == selectedGenderId)">@gender.GenderName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group mb-3">
+                    <label for="category">Category</label>
+                    <select id="category" class="form-select" @onchange="async e => await OnCategorySelected(Convert.ToInt32(e.Value))" disabled="@(categories == null || !categories.Success)">
+                        <option value="0">Select Category</option>
+                        @if (categories != null && categories.Success)
+                        {
+                            @foreach (var category in categories.Data)
+                            {
+                                <option value="@category.Id" selected="@(category.Id == selectedCategoryId)">@category.CategoryName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group mb-3">
+                    <label for="categoryItem">Category Item</label>
+                    <select id="categoryItem" class="form-select" @onchange="OnCategoryItemSelected" disabled="@(categoryItems == null || !categoryItems.Success)">
+                        <option value="0">Select Category Item</option>
+                        @if (categoryItems != null && categoryItems.Success)
+                        {
+                            @foreach (var item in categoryItems.Data)
+                            {
+                                <option value="@item.Id" selected="@(item.Id == productToUpdate.CategoryItemId)">@item.CategoryItemName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group mb-3">
+                    <label for="brand">Brand</label>
+                    <select id="brand" class="form-select" @bind="productToUpdate.BrandId">
+                        <option value="0">Select Brand</option>
+                        @if (brands != null && brands.Success)
+                        {
+                            @foreach (var brand in brands.Data)
+                            {
+                                <option value="@brand.Id">@brand.BarndName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <hr />
+
+        <div class="form-group mb-3">
+            <label for="productName">Product Name</label>
+            <InputText id="productName" class="form-control" @bind-Value="productToUpdate.ProductName" />
+            <ValidationMessage For="@(() => productToUpdate.ProductName)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="productDescription">Product Description</label>
+            <InputTextArea id="productDescription" class="form-control" @bind-Value="productToUpdate.ProductDescription" />
+            <ValidationMessage For="@(() => productToUpdate.ProductDescription)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Product</button>
+        <a href="/products" class="btn btn-secondary">Cancel</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private UpdateProductDto? productToUpdate;
+    private bool isLoaded = false;
+    private int selectedGenderId;
+    private int selectedCategoryId;
+
+    private ResponseModel<List<GenderDto>>? genders;
+    private ResponseModel<List<CategoryDto>>? categories;
+    private ResponseModel<List<CategoryItemDto>>? categoryItems;
+    private ResponseModel<List<BrandDto>>? brands;
+
+    protected override async Task OnInitializedAsync()
+    {
+        genders = await GenderService.GetGendersAsync();
+        brands = await BrandService.GetBrandsAsync();
+
+        var productResponse = await ProductService.GetByIdAsync(Id);
+
+        if (productResponse.Success && productResponse.Data != null)
+        {
+            var productData = productResponse.Data;
+
+            productToUpdate = new UpdateProductDto
+                {
+                    Id = productData.Id,
+                    ProductName = productData.ProductName,
+                    ProductDescription = productData.ProductDescription,
+                    BrandId = productData.BrandId,
+                    CategoryItemId = productData.CategoryItemId
+                };
+
+            selectedCategoryId = productData.CategoryId;
+            selectedGenderId = productData.GenderId;
+
+            await OnGenderSelected(selectedGenderId);
+            await OnCategorySelected(selectedCategoryId);
+
+            isLoaded = true;
+        }
+        else
+        {
+            isLoaded = false;
+            toastService.ShowError("Failed to load product data.");
+        }
+    }
+
+    private async Task OnGenderSelected(int genderId)
+    {
+        selectedGenderId = genderId;
+        selectedCategoryId = 0;
+        productToUpdate.CategoryItemId = 0;
+
+        categories = null;
+        categoryItems = null;
+
+        if (genderId > 0)
+        {
+            categories = await CategoryService.GetCategoryByGenderAsync(genderId);
+        }
+    }
+
+    private async Task OnCategorySelected(int categoryId)
+    {
+        selectedCategoryId = categoryId;
+        productToUpdate.CategoryItemId = 0;
+
+        categoryItems = null;
+
+        if (categoryId > 0)
+        {
+            categoryItems = await CategoryItemService.GetCategoryItemByCategoryAsync(categoryId);
+        }
+    }
+
+    private void OnCategoryItemSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int categoryItemId))
+        {
+            productToUpdate.CategoryItemId = categoryItemId;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (productToUpdate == null) return;
+
+        var response = await ProductService.UpdateProductAsync(productToUpdate);
+
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Product updated successfully.");
+            NavigationManager.NavigateTo("/products");
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to update due to an unknown error.";
+            toastService.ShowError($"Update failed: {errorMessage}");
+        }
+    }
+}

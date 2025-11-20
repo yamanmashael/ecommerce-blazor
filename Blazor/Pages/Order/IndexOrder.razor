@@ -1,0 +1,229 @@
+﻿@page "/orders"
+@attribute [Authorize]
+
+@using Blazor.Services
+@using Blazor.Data
+@inject OrderService OrderService
+@inject IToastService ToastService
+@inject EventService EventService
+@inject IJSRuntime JS
+
+<h3 class="text-primary mb-4">My Orders</h3>
+
+@if (Orders == null)
+{
+    <p>Loading orders...</p>
+}
+else if (!Orders.Any())
+{
+    <p class="text-muted">You don't have any orders yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Shipping Company</th>
+                    <th>Tracking Number</th>
+                    <th>Total Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Orders)
+                {
+                    <tr>
+                        <td>@order.Id</td>
+                        <td>@order.OrderDate.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @switch (order.Status)
+                            {
+                                case "Processing":
+                                    <span class="badge bg-warning text-dark">Processing</span>
+                                    ;
+                                    break;
+                                case "Completed":
+                                    <span class="badge bg-success">Completed</span>
+                                    ;
+                                    break;
+                                case "Canceled":
+                                    <span class="badge bg-danger">Canceled</span>
+                                    ;
+                                    break;
+                                default:
+                                    <span class="badge bg-secondary">@order.Status</span>
+                                    ;
+                                    break;
+                            }
+                        </td>
+                        <td>@order.ShippingCompany</td>
+                        <td>@order.TrackingNumber</td>
+                        <td>@order.TotalPrice ₺</td>
+                        <td>
+                            <button class="btn btn-sm btn-info me-2"
+                                    @onclick="() => ShowDetails(order.Id)">
+                                Details
+                            </button>
+
+                            @if (order.Status == "Processing")
+                            {
+                                <button class="btn btn-sm btn-danger"
+                                        @onclick="() => CancelOrder(order.Id)">
+                                    Cancel
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (ShowModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg rounded-3">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">Order Details - #@SelectedOrderId</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (OrderDetails == null)
+                        {
+                            <p>Loading order details...</p>
+                        }
+                        else if (!OrderDetails.Any())
+                        {
+                            <p class="text-muted">No details available for this order.</p>
+                        }
+                        else
+                        {
+                            <table class="table table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Size</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Image</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var detail in OrderDetails)
+                                    {
+                                        <tr>
+                                            <td>@detail.ProductName</td>
+                                            <td>@detail.SizeName</td>
+                                            <td>@detail.Quantity</td>
+                                            <td>@detail.Price ₺</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(detail.ImageUrl))
+                                                {
+                                                    <img src="@detail.ImageUrl" width="60" height="60" class="rounded border" />
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+
+                            <p><strong>Shipping Address:</strong> @OrderDetails.First().Adress</p>
+                        }
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<OrderDto> Orders;
+    private List<OrderDetailsDto> OrderDetails;
+    private bool ShowModal = false;
+    private int SelectedOrderId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        EventService.OnCancelOrder += HandleOrderChanged;
+        await LoadOrdersAsync();
+    }
+
+    private async void HandleOrderChanged()
+    {
+        await LoadOrdersAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        var response = await OrderService.GetOrderByUserId();
+
+        if (response.Success)
+        {
+            Orders = response.Data.ToList();
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to fetch orders due to an unknown error.";
+            ToastService.ShowError(errorMessage);
+        }
+    }
+
+    private async Task ShowDetails(int orderId)
+    {
+        SelectedOrderId = orderId;
+        ShowModal = true;
+        OrderDetails = null;
+
+        var response = await OrderService.GetOrderById(orderId);
+        if (response.Success)
+        {
+            OrderDetails = response.Data.ToList();
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to fetch order details.";
+            ToastService.ShowError(errorMessage);
+        }
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        OrderDetails = null;
+        SelectedOrderId = 0;
+    }
+
+    private async Task CancelOrder(int orderId)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to cancel this order?");
+        if (!confirmed)
+            return;
+
+        var response = await OrderService.CancelOrder(orderId);
+        if (response.Success)
+        {
+            ToastService.ShowSuccess("Order canceled successfully!");
+        }
+        else
+        {
+            var errorMessage = response.ErrorMassage ?? "Failed to cancel the order.";
+            ToastService.ShowError(errorMessage);
+        }
+    }
+
+    public void Dispose()
+    {
+        EventService.OnCancelOrder -= HandleOrderChanged;
+    }
+}
+    

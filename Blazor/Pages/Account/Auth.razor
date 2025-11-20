@@ -1,0 +1,201 @@
+﻿@page "/auth"
+@using Blazor.Authentication
+@using Blazor.Services
+@using Blazor.Data
+@using Blazor.Shared
+@inject AccountService AccountService
+@inject IToastService toastService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject CartService _shoppingCartService
+@inject EventService _EventService
+
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg p-4 rounded-4">
+                <h3 class="text-center mb-4 fw-bold text-primary">Welcome</h3>
+
+                <!-- ✅ Tabs -->
+                <ul class="nav nav-tabs justify-content-center mb-4">
+                    <li class="nav-item">
+                        <button class="nav-link @(isLoginActive ? "active fw-bold" : "")"
+                                @onclick="() => SwitchTab(true)">
+                            Login
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(!isLoginActive ? "active fw-bold" : "")"
+                                @onclick="() => SwitchTab(false)">
+                            Register
+                        </button>
+                    </li>
+                </ul>
+
+                @if (isLoginActive)
+                {
+                    <!-- ✅ Login Tab -->
+                    <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Email or Username</label>
+                            <InputText class="form-control" @bind-Value="loginModel.UserName" />
+                            <ValidationMessage For="@(() => loginModel.UserName)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
+                            <ValidationMessage For="@(() => loginModel.Password)" />
+                        </div>
+
+                        <button class="btn btn-primary w-100" type="submit">Login</button>
+
+                        <div class="text-center mt-3">
+                            <a href="/forgotpassword" class="text-decoration-none">Forgot your password?</a>
+                        </div>
+                    </EditForm>
+                }
+                else
+                {
+                    <!-- ✅ Register Tab -->
+                    <EditForm Model="registerModel" OnValidSubmit="SubmitRegister">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <InputText class="form-control" @bind-Value="registerModel.Name" />
+                            <ValidationMessage For="@(() => registerModel.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Surname</label>
+                            <InputText class="form-control" @bind-Value="registerModel.Surname" />
+                            <ValidationMessage For="@(() => registerModel.Surname)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText class="form-control" @bind-Value="registerModel.Email" />
+                            <ValidationMessage For="@(() => registerModel.Email)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText type="password" class="form-control" @bind-Value="registerModel.Password" />
+                            <ValidationMessage For="@(() => registerModel.Password)" />
+                        </div>
+
+                        <button class="btn btn-success w-100" type="submit">Register</button>
+                    </EditForm>
+                }
+
+                <!-- ✅ Google Login -->
+                <div class="text-center mt-4">
+                    <div id="googleButtonContainer"></div>
+                    <button @onclick="SignInWithGoogle"
+                            class="btn w-100 border border-secondary rounded d-flex justify-content-center align-items-center gap-2 px-4 py-2 bg-white text-dark shadow-sm">
+                        <img src="https://developers.google.com/identity/images/g-logo.png"
+                             alt="Google logo"
+                             style="width: 20px; height: 20px;" />
+                        <span style="font-weight: 500;">Sign in with Google</span>
+                    </button>
+                </div>
+
+   @*              <div class="text-center mt-4">
+                    <button @onclick="SignInWithGoogle"
+                            class="btn w-100 border border-secondary rounded d-flex justify-content-center align-items-center gap-2 px-4 py-2 bg-white text-dark shadow-sm">
+                        <img src="https://developers.google.com/identity/images/g-logo.png"
+                             alt="Google logo"
+                             style="width: 20px; height: 20px;" />
+                        <span style="font-weight: 500;">Sign in with Google</span>
+                    </button>
+                </div> *@
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool isLoginActive = true;
+
+    private Blazor.Data.Login loginModel { get; set; } = new();
+    private Blazor.Data.Register registerModel { get; set; } = new();
+
+    private void SwitchTab(bool login)
+    {
+        isLoginActive = login;
+    }
+
+    private async Task HandleLogin()
+    {
+        var response = await AccountService.LoginAsync(loginModel);
+        if (response.Success)
+        {
+            await ((CustonAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(response.Data);
+            await _shoppingCartService.MigrateGuestCartToUserCart();
+            _EventService.RaiseUserLoggedIn();
+            if (response.Data.Role == "Admin")
+                NavigationManager.NavigateTo("/dashboard");
+            else
+                NavigationManager.NavigateTo("/");
+
+
+         
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Login failed due to an unknown error.");
+        }
+    }
+
+    private async Task SubmitRegister()
+    {
+        var response = await AccountService.RegisterAsync(registerModel);
+        if (response.Success)
+        {
+            toastService.ShowSuccess("Please check your email to verify your account.");
+            isLoginActive = true;
+        }
+        else
+        {
+            toastService.ShowError(response.ErrorMassage ?? "Registration failed due to an unknown error.");
+        }
+    }
+
+
+
+    private async Task SignInWithGoogle()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("googleAuth");
+            if (!string.IsNullOrEmpty(token))
+            {
+                var response = await AccountService.LoginWithGoogleAsync(token);
+                if (response.Success)
+                {
+                    await ((CustonAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(response.Data);
+                    await _shoppingCartService.MigrateGuestCartToUserCart();
+                    _EventService.RaiseUserLoggedIn();
+
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    toastService.ShowError($"Google login failed: {response.ErrorMassage}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            toastService.ShowError($"Error: {ex.Message}");
+        }
+    }
+
+}

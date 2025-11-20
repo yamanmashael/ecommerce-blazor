@@ -1,0 +1,95 @@
+﻿@page "/complaint-form"
+@using System.ComponentModel.DataAnnotations
+@using Blazor.Data
+@using Blazor.Services
+@inject Complaint ComplaintService
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+<EditForm Model="@Model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="container mt-4">
+        <h3 class="mb-4 text-primary">Complaint / Feedback Form</h3>
+
+        <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <InputText class="form-control" @bind-Value="Model.FullName" />
+            <ValidationMessage For="@(() => Model.FullName)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email Address</label>
+            <InputText type="email" class="form-control" @bind-Value="Model.Email" />
+            <ValidationMessage For="@(() => Model.Email)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Phone Number</label>
+            <InputText class="form-control" @bind-Value="Model.PhoneNumber" />
+            <ValidationMessage For="@(() => Model.PhoneNumber)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Message Type</label>
+            <InputSelect class="form-control" @bind-Value="Model.Complaint">
+                <option value="">-- Select Message Type --</option>
+                <option value="Complaint">Complaint</option>
+                <option value="Appreciation">Appreciation</option>
+                <option value="Suggestion">Suggestion</option>
+                <option value="Inquiry">Inquiry</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => Model.Complaint)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Order Number (optional)</label>
+            <InputText class="form-control" @bind-Value="Model.OrderNo" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Message</label>
+            <InputTextArea class="form-control" @bind-Value="Model.Body" Rows="5" />
+            <ValidationMessage For="@(() => Model.Body)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Submit</button>
+    </div>
+</EditForm>
+
+@code {
+    public Blazor.Data.ComplaintForm Model { get; set; } = new();
+
+    private async Task HandleValidSubmit()
+    {
+        // 🔹 Simple manual validation (extra layer)
+        if (string.IsNullOrWhiteSpace(Model.FullName) ||
+            string.IsNullOrWhiteSpace(Model.Email) ||
+            string.IsNullOrWhiteSpace(Model.Body))
+        {
+            ToastService.ShowError("Please fill in all required fields before submitting.");
+            return;
+        }
+
+        try
+        {
+            var response = await ComplaintService.ComplaintAsync(Model);
+
+            if (response.Success)
+            {
+                ToastService.ShowSuccess("Your complaint has been submitted successfully ✅");
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                var errorMessage = response.ErrorMassage ?? "Submission failed due to an unknown error.";
+                ToastService.ShowError($"Failed to submit: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"An unexpected error occurred: {ex.Message}");
+        }
+    }
+}
